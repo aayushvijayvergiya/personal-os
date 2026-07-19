@@ -5,7 +5,7 @@
 
 ## Overview
 
-A single-user "Personal OS" webapp for tracking tasks, personal projects, goals, habits (with streaks), daily/weekly journals, quick notes, and a calendar — styled as a light-themed retro Windows 95/2000 application, deployed to a public URL behind a simple login.
+A single-user "Personal OS" webapp for tracking tasks, personal projects, goals, habits (with streaks), daily/weekly journals, quick notes, a reading list, a vision board, and a calendar — styled as a light-themed retro Windows 95/2000 application, deployed to a public URL behind a simple login.
 
 Source requirements: `docs/requirements/Requirements.md` plus three Notion "Life OS" reference screenshots.
 
@@ -19,6 +19,8 @@ Source requirements: `docs/requirements/Requirements.md` plus three Notion "Life
 | OS metaphor | Retro-**styled pages** with conventional sidebar navigation (no draggable-window desktop) |
 | Stack | Next.js 15 (App Router, TypeScript) + Tailwind + Supabase, deployed on Vercel |
 | Projects vs tasks | **Separate worlds**: project tasks live only inside the Projects module (own views + own calendar); main Tasks/Calendar/Dashboard/Journal show only standalone tasks |
+| Reading list | Dedicated Reading module (not a project): To Read / Reading / Finished shelves |
+| Vision board | Corkboard canvas with draggable cards, incl. goal-linked cards with live progress. Boot splash, future-self letters, screensaver deferred to v2 |
 
 ## Architecture
 
@@ -41,11 +43,13 @@ All tables carry `user_id` (RLS) and timestamps.
 - **journal_entries** — `date`, `type` (`daily|weekly`), `answers jsonb` (keyed by question id), `notes`, `day_rating`
 - **journal_questions** — `prompt`, `journal_type` (`daily|weekly`), `sort_order`, `active`
 - **notes** — `title` (optional), `body`, `pinned`
+- **books** — `title`, `author`, `status` (`to_read|reading|finished`), `rating` (1–5, nullable), `takeaways`, `link` (nullable), `started_at`/`finished_at` (nullable dates), `sort_order`
+- **vision_items** — `item_type` (`note|image|goal|list`), `content jsonb` (note text + color, image URL + caption, `goal_id`, or list title + items), `pos_x`, `pos_y`, `rotation`, `z_index`
 - **field_definitions** — custom fields config: `entity` (`task|goal`), `name`, `field_type` (`text|number|date|select`), `options jsonb` (for select), `sort_order`. Values stored in each row's `custom_fields` jsonb keyed by definition id.
 
 ## Screens
 
-1. **Dashboard (home)** — today's tasks, today's habit check-off strip, current streaks, goals due soon, pinned notes.
+1. **Dashboard (home)** — today's tasks, today's habit check-off strip, current streaks, goals due soon, pinned notes, "currently reading" card.
 2. **Tasks** — tab strip **Today / This Week / This Month / All / Done**; inline add (title, due date, priority); detail panel for description + custom fields; overdue flagged red.
 3. **Goals** — grouped by horizon (This month / This quarter / This year / Dated); category chip filters; add dialog picks horizon type + value; status toggle.
 4. **Projects** — left pane listing projects with progress ("4/9 tasks done") and status; selecting a project shows its task list with inline add and detail panel (same fields as tasks, incl. custom fields). An **All Tasks** tab lists every project task with a "Group by:" dropdown — **Project / Due date / Status**. A **Calendar** tab shows a month/week calendar of project tasks only, color-coded by project. Manage projects: create/edit/archive.
@@ -53,7 +57,9 @@ All tables carry `user_id` (RLS) and timestamps.
 6. **Habits** — streak dashboard: week grid (habits × days with checkboxes), per-habit current/best streak and completion %; manage habits (add/rename/reorder/retire).
 7. **Calendar** — month/week toggle; standalone tasks on due dates; dated goals on their day; month/quarter/year goals in a banner strip over the range; click a day for its items; quick-add task on a day.
 8. **Notes** — quick capture at top, reverse-chron list, pin/unpin, search.
-9. **Settings** — goal categories, journal question sets (daily/weekly), custom field definitions, habit management.
+9. **Reading** — shelf tabs **To Read / Reading / Finished**; add book (title, author, optional link); move between shelves; star rating + takeaways when finished; "currently reading" card on Dashboard.
+10. **Vision Board** — freeform corkboard canvas of draggable retro cards: sticky notes (text + color), image cards (URL or upload to Supabase storage), list cards (e.g. "Non-Negotiables"), and **goal cards** — pin any goal and it renders with a live progress/status bar. Positions, rotation, and stacking persist. Double-click empty space to add a card.
+11. **Settings** — goal categories, journal question sets (daily/weekly), custom field definitions, habit management.
 
 Plus a login page.
 
@@ -62,6 +68,7 @@ Plus a login page.
 - Habit checkboxes in Journal and Habits pages read/write the same `habit_entries` rows.
 - Tasks shown in Journal for a date are the same rows as the Tasks module (checking one completes the task); project tasks are excluded.
 - Custom field definitions with `entity = task` apply to both standalone and project tasks (one table).
+- Vision Board goal cards read the live goal row (title, status); completing a goal updates its card. Deleting a goal deletes its vision card.
 - Journal entries are created lazily on first open of a date, snapshotting nothing — questions render from the active question set; answers persist in `answers` jsonb.
 
 ## Error Handling
@@ -83,4 +90,4 @@ Plus a login page.
 - Drag-and-drop calendar rescheduling
 - Full desktop-window metaphor
 - Offline support
-- Reading list / vision board modules from the Notion reference
+- Vision board extras: boot-splash vision rotation, time-locked letters to future self, screensaver mode
