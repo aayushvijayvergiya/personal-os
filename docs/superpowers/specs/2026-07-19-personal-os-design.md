@@ -5,7 +5,7 @@
 
 ## Overview
 
-A single-user "Personal OS" webapp for tracking tasks, goals, habits (with streaks), daily/weekly journals, quick notes, and a calendar — styled as a light-themed retro Windows 95/2000 application, deployed to a public URL behind a simple login.
+A single-user "Personal OS" webapp for tracking tasks, personal projects, goals, habits (with streaks), daily/weekly journals, quick notes, and a calendar — styled as a light-themed retro Windows 95/2000 application, deployed to a public URL behind a simple login.
 
 Source requirements: `docs/requirements/Requirements.md` plus three Notion "Life OS" reference screenshots.
 
@@ -18,6 +18,7 @@ Source requirements: `docs/requirements/Requirements.md` plus three Notion "Life
 | Visual style | Retro Win95/2000 light theme (bevels, gray panels, classic chrome) |
 | OS metaphor | Retro-**styled pages** with conventional sidebar navigation (no draggable-window desktop) |
 | Stack | Next.js 15 (App Router, TypeScript) + Tailwind + Supabase, deployed on Vercel |
+| Projects vs tasks | **Separate worlds**: project tasks live only inside the Projects module (own views + own calendar); main Tasks/Calendar/Dashboard/Journal show only standalone tasks |
 
 ## Architecture
 
@@ -31,7 +32,8 @@ Source requirements: `docs/requirements/Requirements.md` plus three Notion "Life
 
 All tables carry `user_id` (RLS) and timestamps.
 
-- **tasks** — `title`, `description`, `due_date`, `priority`, `status` (`open|done`), `completed_at`, `custom_fields jsonb`
+- **tasks** — `title`, `description`, `due_date`, `priority`, `status` (`open|in_progress|done`), `completed_at`, `project_id` (nullable), `custom_fields jsonb`. Rows with `project_id` set are project tasks and are excluded from the main Tasks views, main Calendar, Dashboard, and Journal.
+- **projects** — `name`, `description`, `color`, `status` (`active|paused|completed|archived`), `target_date` (nullable)
 - **goals** — `title`, `description`, `horizon_type` (`date|month|quarter|year`), `horizon_value` (text: `2026-07-19`, `2026-07`, `2026-Q3`, `2026`), `category_id`, `status` (`not_started|in_progress|done`), `custom_fields jsonb`
 - **categories** — goal categories: `name`, `color`
 - **habits** — `name`, `icon`, `active`, `sort_order` (daily schedule in v1)
@@ -46,18 +48,20 @@ All tables carry `user_id` (RLS) and timestamps.
 1. **Dashboard (home)** — today's tasks, today's habit check-off strip, current streaks, goals due soon, pinned notes.
 2. **Tasks** — tab strip **Today / This Week / This Month / All / Done**; inline add (title, due date, priority); detail panel for description + custom fields; overdue flagged red.
 3. **Goals** — grouped by horizon (This month / This quarter / This year / Dated); category chip filters; add dialog picks horizon type + value; status toggle.
-4. **Journal** — date navigator; opening a day auto-creates the entry from the template: habit checklist (writes to `habit_entries`), reflection questions, notes area, and that day's tasks (synced with Tasks). **Weekly** tab per ISO week with the weekly question set.
-5. **Habits** — streak dashboard: week grid (habits × days with checkboxes), per-habit current/best streak and completion %; manage habits (add/rename/reorder/retire).
-6. **Calendar** — month/week toggle; tasks on due dates; dated goals on their day; month/quarter/year goals in a banner strip over the range; click a day for its items; quick-add task on a day.
-7. **Notes** — quick capture at top, reverse-chron list, pin/unpin, search.
-8. **Settings** — goal categories, journal question sets (daily/weekly), custom field definitions, habit management.
+4. **Projects** — left pane listing projects with progress ("4/9 tasks done") and status; selecting a project shows its task list with inline add and detail panel (same fields as tasks, incl. custom fields). An **All Tasks** tab lists every project task with a "Group by:" dropdown — **Project / Due date / Status**. A **Calendar** tab shows a month/week calendar of project tasks only, color-coded by project. Manage projects: create/edit/archive.
+5. **Journal** — date navigator; opening a day auto-creates the entry from the template: habit checklist (writes to `habit_entries`), reflection questions, notes area, and that day's tasks (synced with Tasks). **Weekly** tab per ISO week with the weekly question set.
+6. **Habits** — streak dashboard: week grid (habits × days with checkboxes), per-habit current/best streak and completion %; manage habits (add/rename/reorder/retire).
+7. **Calendar** — month/week toggle; standalone tasks on due dates; dated goals on their day; month/quarter/year goals in a banner strip over the range; click a day for its items; quick-add task on a day.
+8. **Notes** — quick capture at top, reverse-chron list, pin/unpin, search.
+9. **Settings** — goal categories, journal question sets (daily/weekly), custom field definitions, habit management.
 
 Plus a login page.
 
 ## Cross-Module Behavior
 
 - Habit checkboxes in Journal and Habits pages read/write the same `habit_entries` rows.
-- Tasks shown in Journal for a date are the same rows as the Tasks module (checking one completes the task).
+- Tasks shown in Journal for a date are the same rows as the Tasks module (checking one completes the task); project tasks are excluded.
+- Custom field definitions with `entity = task` apply to both standalone and project tasks (one table).
 - Journal entries are created lazily on first open of a date, snapshotting nothing — questions render from the active question set; answers persist in `answers` jsonb.
 
 ## Error Handling
