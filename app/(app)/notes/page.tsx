@@ -26,16 +26,20 @@ export default function NotesPage() {
     setBody(""); load();
   }
   async function togglePin(n: Note) {
-    await supabase.from("notes").update({ pinned: !n.pinned }).eq("id", n.id);
+    const { error } = await supabase.from("notes").update({ pinned: !n.pinned }).eq("id", n.id);
+    if (error) return showToast(error.message);
     load();
   }
   async function saveEdit() {
     if (!editing) return;
-    await supabase.from("notes").update({ body: editing.body, title: editing.title }).eq("id", editing.id);
+    const { error } = await supabase.from("notes").update({ body: editing.body, title: editing.title }).eq("id", editing.id);
+    if (error) return showToast(error.message);
     setEditing(null); load();
   }
   async function remove(id: string) {
-    await supabase.from("notes").delete().eq("id", id);
+    if (!window.confirm("Delete this note permanently?")) return;
+    const { error } = await supabase.from("notes").delete().eq("id", id);
+    if (error) return showToast(error.message);
     setEditing(null); load();
   }
 
