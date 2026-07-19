@@ -15,12 +15,13 @@ export default function HabitsPage() {
   const [entries, setEntries] = useState<HabitEntry[]>([]);
   const [manage, setManage] = useState(false);
   const [newName, setNewName] = useState("");
+  const [pending, setPending] = useState<Set<string>>(new Set());
   const days = weekDates(weekAnchor);
 
   const load = useCallback(async () => {
     const [h, e] = await Promise.all([
       supabase.from("habits").select("*").order("sort_order"),
-      supabase.from("habit_entries").select("*").gte("date", addDays(today, -60)),
+      supabase.from("habit_entries").select("*"),
     ]);
     if (h.error) return showToast(h.error.message);
     setHabits(h.data as Habit[]);
@@ -33,6 +34,9 @@ export default function HabitsPage() {
 
   async function toggle(habitId: string, date: string) {
     if (date > today) return;
+    const key = `${habitId}:${date}`;
+    if (pending.has(key)) return;
+    setPending((p) => new Set(p).add(key));
     const existing = entries.find((e) => e.habit_id === habitId && e.date === date);
     // optimistic
     if (existing) setEntries((es) => es.map((e) => e === existing ? { ...e, checked: !e.checked } : e));
@@ -41,7 +45,8 @@ export default function HabitsPage() {
       ? await supabase.from("habit_entries").update({ checked: !existing.checked }).eq("id", existing.id)
       : await supabase.from("habit_entries").insert({ habit_id: habitId, date });
     if (error) { showToast(error.message); }
-    load();
+    await load();
+    setPending((p) => { const n = new Set(p); n.delete(key); return n; });
   }
   async function addHabit() {
     if (!newName.trim()) return;
@@ -51,11 +56,16 @@ export default function HabitsPage() {
     setNewName(""); load();
   }
   async function renameHabit(h: Habit, name: string) {
-    setHabits((hs) => hs.map((x) => x.id === h.id ? { ...x, name } : x));
-    await supabase.from("habits").update({ name }).eq("id", h.id);
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === h.name) return;
+    setHabits((hs) => hs.map((x) => x.id === h.id ? { ...x, name: trimmed } : x));
+    const { error } = await supabase.from("habits").update({ name: trimmed }).eq("id", h.id);
+    if (error) showToast(error.message);
+    load();
   }
   async function toggleActive(h: Habit) {
-    await supabase.from("habits").update({ active: !h.active }).eq("id", h.id);
+    const { error } = await supabase.from("habits").update({ active: !h.active }).eq("id", h.id);
+    if (error) showToast(error.message);
     load();
   }
   async function moveHabit(h: Habit, dir: -1 | 1) {
@@ -63,10 +73,12 @@ export default function HabitsPage() {
     const i = act.findIndex((x) => x.id === h.id);
     const j = i + dir;
     if (j < 0 || j >= act.length) return;
-    await Promise.all([
-      supabase.from("habits").update({ sort_order: j }).eq("id", act[i].id),
-      supabase.from("habits").update({ sort_order: i }).eq("id", act[j].id),
+    const [r1, r2] = await Promise.all([
+      supabase.from("habits").update({ sort_order: act[j].sort_order }).eq("id", act[i].id),
+      supabase.from("habits").update({ sort_order: act[i].sort_order }).eq("id", act[j].id),
     ]);
+    if (r1.error) showToast(r1.error.message);
+    if (r2.error) showToast(r2.error.message);
     load();
   }
 
@@ -106,7 +118,7 @@ export default function HabitsPage() {
                     {days.map((d) => (
                       <td key={d} className={`border border-[#ccc] text-center ${d === today ? "bg-[#ffffe1]" : ""}`}>
                         <input type="checkbox" className="h-4 w-4 accent-[#000080]"
-                          disabled={d > today}
+                          disabled={d > today || pending.has(`${h.id}:${d}`)}
                           checked={isChecked(h.id, d)} onChange={() => toggle(h.id, d)} />
                       </td>
                     ))}
@@ -129,7 +141,7 @@ export default function HabitsPage() {
         </div>
         {habits.map((h) => (
           <div key={h.id} className="mb-1 flex items-center gap-2">
-            <Input value={h.name} onChange={(e) => renameHabit(h, e.target.value)} />
+            <Input key={h.id} defaultValue={h.name} onBlur={(e) => renameHabit(h, e.target.value)} />
             <Btn onClick={() => moveHabit(h, -1)}>▲</Btn>
             <Btn onClick={() => moveHabit(h, 1)}>▼</Btn>
             <Btn onClick={() => toggleActive(h)}>{h.active ? "Retire" : "Restore"}</Btn>
