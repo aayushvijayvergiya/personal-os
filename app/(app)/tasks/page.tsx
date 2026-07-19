@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomFields, Task } from "@/lib/types";
 import { todayISO, weekRange, monthRange, fmt } from "@/lib/dates";
+import { PRIORITY_OPTS, priorityClass } from "@/lib/taskUi";
 import { Btn, Input, Select, TabBar, Dialog, Check, TextArea } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
@@ -11,12 +12,6 @@ const TABS = [
   { key: "today", label: "Today" }, { key: "week", label: "This Week" },
   { key: "month", label: "This Month" }, { key: "all", label: "All" }, { key: "done", label: "Done" },
 ];
-const PRIORITY_OPTS = [
-  { value: "1", label: "P1" }, { value: "2", label: "P2" }, { value: "3", label: "P3" },
-];
-function priorityClass(p: number) {
-  return p === 1 ? "text-[#aa0000] font-bold" : p === 3 ? "text-[#666666]" : "";
-}
 
 export default function TasksPage() {
   const [supabase] = useState(() => createClient());
