@@ -1,5 +1,6 @@
 import Sidebar from "@/components/Sidebar";
 import StatusBar from "@/components/StatusBar";
+import { Toaster } from "@/components/win/toast";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto min-w-0">{children}</main>
       </div>
       <StatusBar />
+      <Toaster />
     </div>
   );
 }
