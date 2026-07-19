@@ -11,7 +11,9 @@ export default function JournalPage() {
   const supabase = createClient();
   const today = todayISO();
   const [type, setType] = useState<JournalType>("daily");
-  const [date, setDate] = useState(today); // daily: the day; weekly: Monday of week
+  const [dates, setDates] = useState<Record<JournalType, string>>({ daily: today, weekly: today }); // daily: the day; weekly: Monday of week
+  const date = dates[type];
+  const setDate = (d: string) => setDates((m) => ({ ...m, [type]: d }));
   const [questions, setQuestions] = useState<JournalQuestion[]>([]);
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -22,7 +24,11 @@ export default function JournalPage() {
   const effectiveDate = type === "weekly" ? weekStart(date) : date;
 
   const load = useCallback(async () => {
-    await ensureDefaultQuestions(supabase);
+    try {
+      await ensureDefaultQuestions(supabase);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err));
+    }
     const [q, h, he, t, e] = await Promise.all([
       supabase.from("journal_questions").select("*").eq("journal_type", type).eq("active", true).order("sort_order"),
       supabase.from("habits").select("*").eq("active", true).order("sort_order"),
@@ -38,7 +44,8 @@ export default function JournalPage() {
     if (e.data) setEntry(e.data as JournalEntry);
     else {
       const { data, error } = await supabase.from("journal_entries")
-        .insert({ date: effectiveDate, type }).select().single();
+        .upsert({ date: effectiveDate, type }, { onConflict: "user_id,date,type" })
+        .select().single();
       if (error) showToast(error.message); else setEntry(data as JournalEntry);
     }
   }, [type, effectiveDate]); // eslint-disable-line react-hooks/exhaustive-deps
