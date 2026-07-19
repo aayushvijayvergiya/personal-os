@@ -45,7 +45,8 @@ export default function SettingsPage() {
   }
   async function addQuestion() {
     if (!qPrompt.trim()) return;
-    const n = questions.filter((q) => q.journal_type === qType).length;
+    const group = questions.filter((q) => q.journal_type === qType);
+    const n = group.reduce((m, q) => Math.max(m, q.sort_order), -1) + 1;
     const { error } = await supabase.from("journal_questions").insert({
       prompt: qPrompt.trim(), journal_type: qType, sort_order: n });
     if (error) return showToast(error.message);
@@ -65,7 +66,8 @@ export default function SettingsPage() {
   async function addField() {
     if (!fName.trim()) return;
     if (fType === "select" && !fOptions.trim()) return showToast("Give comma-separated options for a select field.");
-    const n = fields.filter((f) => f.entity === fEntity).length;
+    const group = fields.filter((f) => f.entity === fEntity);
+    const n = group.reduce((m, f) => Math.max(m, f.sort_order), -1) + 1;
     const { error } = await supabase.from("field_definitions").insert({
       entity: fEntity, name: fName.trim(), field_type: fType,
       options: fType === "select" ? fOptions.split(",").map((s) => s.trim()).filter(Boolean) : null,
