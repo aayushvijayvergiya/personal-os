@@ -13,7 +13,7 @@ const STATUS_LABEL: Record<Task["status"], string> = { open: "Open", in_progress
 export default function ProjectsPage() {
   const supabase = createClient();
   const today = todayISO();
-  const [tab, setTab] = useState("board");
+  const [tab, setTabState] = useState("board");
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -22,6 +22,17 @@ export default function ProjectsPage() {
   const [projDraft, setProjDraft] = useState<Partial<Project> | null>(null);
   const [detail, setDetail] = useState<Task | null>(null);
 
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "all" || t === "calendar") setTabState(t);
+  }, []);
+  function setTab(t: string) {
+    setTabState(t);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", t);
+    window.history.replaceState(null, "", url);
+  }
+
   const load = useCallback(async () => {
     const [p, t] = await Promise.all([
       supabase.from("projects").select("*").neq("status", "archived").order("created_at"),
@@ -29,9 +40,10 @@ export default function ProjectsPage() {
         .order("due_date", { ascending: true, nullsFirst: false }),
     ]);
     if (p.error) return showToast(p.error.message);
-    setProjects(p.data as Project[]);
+    const list = p.data as Project[];
+    setProjects(list);
     if (!t.error) setTasks(t.data as Task[]);
-    setSelected((s) => s ?? (p.data as Project[])[0]?.id ?? null);
+    setSelected((s) => (s && list.some((x) => x.id === s) ? s : list[0]?.id ?? null));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
 
@@ -82,7 +94,7 @@ export default function ProjectsPage() {
   const totalCount = (pid: string) => tasks.filter((t) => t.project_id === pid).length;
 
   const groups = useMemo(() => {
-    const open = tasks;
+    const open = tasks.filter((t) => projects.some((p) => p.id === t.project_id));
     if (groupBy === "project")
       return projects.map((p) => ({ label: `📁 ${p.name}`, color: p.color, items: open.filter((t) => t.project_id === p.id) }));
     if (groupBy === "status")
