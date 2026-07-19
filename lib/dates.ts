@@ -36,11 +36,14 @@ export function monthGridDates(iso: string): string[] {
   return Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
 }
 export function isoWeekLabel(iso: string): string {
-  const d = fromISO(weekStart(iso));
-  d.setDate(d.getDate() + 3); // Thursday determines ISO week-year
-  const jan1 = new Date(d.getFullYear(), 0, 1);
-  const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
-  return `Week ${week}, ${d.getFullYear()}`;
+  const thursday = fromISO(weekStart(iso));
+  thursday.setDate(thursday.getDate() + 3); // Thursday determines ISO week-year
+  const year = thursday.getFullYear();
+  const jan4 = new Date(year, 0, 4);
+  const week1Monday = new Date(jan4);
+  week1Monday.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+  const week = Math.round((thursday.getTime() - week1Monday.getTime()) / (7 * 86400000)) + 1;
+  return `Week ${week}, ${year}`;
 }
 export function fmt(iso: string): string {
   return fromISO(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });

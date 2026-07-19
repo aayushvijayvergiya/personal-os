@@ -31,6 +31,9 @@ describe("dates", () => {
   });
   it("isoWeekLabel", () => {
     expect(isoWeekLabel("2026-07-19")).toBe("Week 29, 2026");
+    expect(isoWeekLabel("2023-01-01")).toBe("Week 52, 2022");
+    expect(isoWeekLabel("2024-12-30")).toBe("Week 1, 2025");
+    expect(isoWeekLabel("2026-01-01")).toBe("Week 1, 2026");
   });
   it("fmt", () => {
     expect(fmt("2026-07-19")).toBe("Sun, Jul 19");
