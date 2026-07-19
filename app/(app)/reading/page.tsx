@@ -36,6 +36,7 @@ export default function ReadingPage() {
     if (status === "finished") { setFinishing({ ...b, rating: b.rating ?? 4 }); return; }
     const patch: Partial<Book> = { status };
     if (status === "reading" && !b.started_at) patch.started_at = todayISO();
+    if (b.status === "finished") { patch.finished_at = null; patch.rating = null; }
     const { error } = await supabase.from("books").update(patch).eq("id", b.id);
     if (error) { showToast(error.message); return; }
     load();

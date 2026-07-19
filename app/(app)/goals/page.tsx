@@ -66,6 +66,9 @@ export default function GoalsPage() {
     if (error) showToast(error.message); else load();
   }
   async function remove(id: string) {
+    const { error: viError } = await supabase.from("vision_items").delete()
+      .eq("item_type", "goal").contains("content", { goal_id: id });
+    if (viError) showToast(viError.message);
     const { error } = await supabase.from("goals").delete().eq("id", id);
     if (error) return showToast(error.message);
     setDraft(null); load();

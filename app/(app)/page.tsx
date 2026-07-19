@@ -54,7 +54,8 @@ export default function Dashboard() {
       const { error } = await supabase.from("habit_entries").update({ checked: !ex.checked }).eq("id", ex.id);
       if (error) return showToast(error.message);
     } else {
-      const { error } = await supabase.from("habit_entries").insert({ habit_id: habitId, date: today });
+      const { error } = await supabase.from("habit_entries")
+        .upsert({ habit_id: habitId, date: today, checked: true }, { onConflict: "habit_id,date" });
       if (error) return showToast(error.message);
     }
     load();

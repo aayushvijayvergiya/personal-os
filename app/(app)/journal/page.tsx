@@ -66,7 +66,8 @@ export default function JournalPage() {
     const ex = habitEntries.find((e) => e.habit_id === habitId);
     const { error } = ex
       ? await supabase.from("habit_entries").update({ checked: !ex.checked }).eq("id", ex.id)
-      : await supabase.from("habit_entries").insert({ habit_id: habitId, date: effectiveDate });
+      : await supabase.from("habit_entries")
+          .upsert({ habit_id: habitId, date: effectiveDate, checked: true }, { onConflict: "habit_id,date" });
     if (error) showToast(error.message);
     const { data } = await supabase.from("habit_entries").select("*").eq("date", effectiveDate);
     setHabitEntries((data as HabitEntry[]) ?? []);
