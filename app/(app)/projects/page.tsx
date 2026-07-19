@@ -2,11 +2,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomFields, Project, Task } from "@/lib/types";
-import { fmt, todayISO } from "@/lib/dates";
+import { addDays, fmt, todayISO } from "@/lib/dates";
 import { PRIORITY_OPTS, priorityClass } from "@/lib/taskUi";
 import { Window, Btn, Input, Select, TabBar, Dialog, Check, TextArea } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
+import CalendarGrid from "@/components/CalendarGrid";
 
 const STATUS_LABEL: Record<Task["status"], string> = { open: "Open", in_progress: "In Progress", done: "Done" };
 
@@ -186,7 +187,9 @@ export default function ProjectsPage() {
           </div>
         )}
 
-        {tab === "calendar" && <p className="text-[#666]">Calendar arrives with Task 9.</p>}
+        {tab === "calendar" && (
+          <ProjectCalendar tasks={tasks} projects={projects} />
+        )}
       </div>
 
       <Dialog title="Project Properties" open={!!projDraft} onClose={() => setProjDraft(null)}>
@@ -249,6 +252,35 @@ export default function ProjectsPage() {
           </>
         )}
       </Dialog>
+    </div>
+  );
+}
+
+function ProjectCalendar({ tasks, projects }: { tasks: Task[]; projects: Project[] }) {
+  const [mode, setMode] = useState<"month" | "week">("month");
+  const [anchor, setAnchor] = useState(todayISO());
+  function move(dir: 1 | -1) {
+    if (mode === "week") setAnchor(addDays(anchor, dir * 7));
+    else {
+      const [y, m] = anchor.split("-").map(Number);
+      const d = new Date(y, m - 1 + dir, 1);
+      setAnchor(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`);
+    }
+  }
+  const items = tasks.filter((t) => t.due_date).map((t) => ({
+    id: t.id, date: t.due_date!, label: t.title, done: t.status === "done",
+    color: projects.find((p) => p.id === t.project_id)?.color ?? "#000080",
+  }));
+  return (
+    <div>
+      <div className="mb-2 flex gap-1">
+        <Btn onClick={() => move(-1)}>◀</Btn>
+        <Btn onClick={() => setAnchor(todayISO())}>Today</Btn>
+        <Btn onClick={() => move(1)}>▶</Btn>
+        <Btn className={mode === "week" ? "win-btn-primary" : ""} onClick={() => setMode("week")}>Week</Btn>
+        <Btn className={mode === "month" ? "win-btn-primary" : ""} onClick={() => setMode("month")}>Month</Btn>
+      </div>
+      <CalendarGrid mode={mode} anchor={anchor} items={items} />
     </div>
   );
 }
