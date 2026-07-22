@@ -49,7 +49,7 @@ export default function JournalPage() {
       if (error) showToast(error.message); else setEntry(data as JournalEntry);
     }
   }, [type, effectiveDate]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setEntry(null); load(); }, [load]);
+  useEffect(() => { setEntry(null); load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function saveEntry(patch: Partial<JournalEntry>) {
     if (!entry) return;

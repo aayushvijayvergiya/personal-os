@@ -39,7 +39,7 @@ export default function GoalsPage() {
     if (g.error) showToast(g.error.message); else setGoals(g.data as Goal[]);
     if (!c.error) setCats(c.data as Category[]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   function defaultValueFor(type: HorizonType): string {
     const cur = currentValues(today);

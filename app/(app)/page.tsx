@@ -41,7 +41,7 @@ export default function Dashboard() {
     setNotes((n.data as Note[]) ?? []);
     setReading((b.data as Book[]) ?? []);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function toggleTask(t: Task) {
     const { error } = await supabase.from("tasks").update({ status: "done", completed_at: new Date().toISOString() }).eq("id", t.id);

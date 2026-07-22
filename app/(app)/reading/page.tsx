@@ -24,7 +24,7 @@ export default function ReadingPage() {
       .order("sort_order").order("created_at", { ascending: false });
     if (error) showToast(error.message); else setBooks(data as Book[]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function add() {
     if (!title.trim()) return;

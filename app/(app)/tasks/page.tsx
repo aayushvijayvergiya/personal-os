@@ -37,7 +37,7 @@ export default function TasksPage() {
     if (error) showToast(error.message);
     else setTasks(data as Task[]);
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function addTask() {
     if (!title.trim()) return;

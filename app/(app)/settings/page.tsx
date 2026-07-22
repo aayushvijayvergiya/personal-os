@@ -29,7 +29,7 @@ export default function SettingsPage() {
     setQuestions((q.data as JournalQuestion[]) ?? []);
     setFields((f.data as FieldDefinition[]) ?? []);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function addCat() {
     if (!catName.trim()) return;

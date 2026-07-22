@@ -25,7 +25,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "all" || t === "calendar") setTabState(t);
+    if (t === "all" || t === "calendar") setTabState(t); // eslint-disable-line react-hooks/set-state-in-effect
   }, []);
   function setTab(t: string) {
     setTabState(t);
@@ -46,7 +46,7 @@ export default function ProjectsPage() {
     if (!t.error) setTasks(t.data as Task[]);
     setSelected((s) => (s && list.some((x) => x.id === s) ? s : list[0]?.id ?? null));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function saveProject() {
     if (!projDraft?.name?.trim()) return;

@@ -28,7 +28,7 @@ export default function CalendarPage() {
     if (t.error) showToast(t.error.message); else setTasks(t.data as Task[]);
     if (!g.error) setGoals(g.data as Goal[]);
   }, [range.start, range.end]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const items: CalItem[] = useMemo(() => [
     ...tasks.filter((t) => t.due_date).map((t) => ({

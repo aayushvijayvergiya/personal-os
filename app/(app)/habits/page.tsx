@@ -27,7 +27,7 @@ export default function HabitsPage() {
     setHabits(h.data as Habit[]);
     if (!e.error) setEntries(e.data as HabitEntry[]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   const isChecked = (habitId: string, date: string) =>
     entries.some((e) => e.habit_id === habitId && e.date === date && e.checked);

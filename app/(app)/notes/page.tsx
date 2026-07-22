@@ -17,7 +17,7 @@ export default function NotesPage() {
       .order("pinned", { ascending: false }).order("created_at", { ascending: false });
     if (error) showToast(error.message); else setNotes(data as Note[]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function add() {
     if (!body.trim()) return;

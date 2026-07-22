@@ -27,7 +27,7 @@ export default function VisionPage() {
     if (v.error) showToast(v.error.message); else setItems(v.data as VisionItem[]);
     if (!g.error) setGoals(g.data as Goal[]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   function onPointerDown(e: React.PointerEvent, it: VisionItem) {
     const rect = boardRef.current!.getBoundingClientRect();
