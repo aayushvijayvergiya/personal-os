@@ -21,6 +21,7 @@ export default function TasksPage() {
   const [due, setDue] = useState(todayISO());
   const [priority, setPriority] = useState("2");
   const [detail, setDetail] = useState<Task | null>(null);
+  const [showDone, setShowDone] = useState(false);
   const today = todayISO();
 
   const load = useCallback(async () => {
@@ -28,7 +29,7 @@ export default function TasksPage() {
       .order("due_date", { ascending: true, nullsFirst: false }).order("priority");
     if (tab === "done") q = q.eq("status", "done");
     else {
-      q = q.neq("status", "done");
+      if (!showDone) q = q.neq("status", "done");
       if (tab === "today") q = q.lte("due_date", today);
       if (tab === "week") q = q.lte("due_date", weekRange(today).end);
       if (tab === "month") q = q.lte("due_date", monthRange(today).end);
@@ -36,7 +37,7 @@ export default function TasksPage() {
     const { data, error } = await q;
     if (error) showToast(error.message);
     else setTasks(data as Task[]);
-  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, showDone]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function addTask() {
@@ -61,6 +62,8 @@ export default function TasksPage() {
     const { error } = await supabase.from("tasks").update({
       title: detail.title, description: detail.description, due_date: detail.due_date || null,
       priority: detail.priority, status: detail.status, custom_fields: detail.custom_fields,
+      completed_at: detail.status === "done"
+        ? detail.completed_at ?? new Date().toISOString() : null,
     }).eq("id", detail.id);
     if (error) return showToast(error.message);
     setDetail(null); load();
@@ -78,19 +81,30 @@ export default function TasksPage() {
         <div className="mb-3 flex gap-2">
           <Input placeholder="New task title…" value={title} onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addTask()} />
-          <input type="date" className="win-input w-40" value={due} onChange={(e) => setDue(e.target.value)} />
+          <input type="date" className="win-input" style={{ width: "auto", flexShrink: 0 }} value={due} onChange={(e) => setDue(e.target.value)} />
           <Select className="w-20" value={priority} onChange={(e) => setPriority(e.target.value)} options={PRIORITY_OPTS} />
           <Btn primary onClick={addTask}>Add</Btn>
         </div>
+        {tab !== "done" && (
+          <div className="mb-2 flex items-center justify-between">
+            <Check label="Show completed" checked={showDone} onChange={setShowDone} />
+            <span className="text-xs text-[#444]">
+              {tasks.filter((t) => t.status === "done").length} done / {tasks.length} shown
+            </span>
+          </div>
+        )}
         <div className="bevel-in bg-white">
           {tasks.length === 0 && <p className="p-4 text-[#666]">No tasks here. Add one above. ▲</p>}
           {tasks.map((t) => {
             const overdue = t.status !== "done" && t.due_date && t.due_date < today;
             return (
-              <div key={t.id} className="flex items-center gap-2 border-b border-[#ddd] px-2 py-1 hover:bg-[#eef]">
-                <Check checked={t.status === "done"} onChange={() => toggleDone(t)} />
-                <button className="flex-1 text-left" onClick={() => setDetail({ ...t })}>
+              <div key={t.id} className="flex items-start gap-2 border-b border-[#ddd] px-2 py-1 hover:bg-[#eef]">
+                <span className="mt-[3px]"><Check checked={t.status === "done"} onChange={() => toggleDone(t)} /></span>
+                <button className="min-w-0 flex-1 text-left" onClick={() => setDetail({ ...t })}>
                   <span className={t.status === "done" ? "line-through text-[#666]" : ""}>{t.title}</span>
+                  {t.description && (
+                    <span className="mt-0.5 block whitespace-pre-wrap break-words text-xs text-[#666]">{t.description}</span>
+                  )}
                 </button>
                 <span className={priorityClass(t.priority)}>P{t.priority}</span>
                 <span className={`w-24 text-right text-xs ${overdue ? "text-[#aa0000] font-bold" : "text-[#444]"}`}>

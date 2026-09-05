@@ -4,14 +4,14 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/", icon: "🖥️", label: "Dashboard" },
+  { href: "/notes", icon: "🗒️", label: "Notes" },
+  { href: "/journal", icon: "📓", label: "Journal" },
   { href: "/tasks", icon: "📋", label: "Tasks" },
   { href: "/goals", icon: "🎯", label: "Goals" },
-  { href: "/projects", icon: "📁", label: "Projects" },
-  { href: "/journal", icon: "📓", label: "Journal" },
-  { href: "/habits", icon: "✅", label: "Habits" },
   { href: "/calendar", icon: "📅", label: "Calendar" },
-  { href: "/notes", icon: "🗒️", label: "Notes" },
+  { href: "/projects", icon: "📁", label: "Projects" },
   { href: "/reading", icon: "📚", label: "Reading" },
+  { href: "/habits", icon: "✅", label: "Habits" },
   { href: "/vision", icon: "🌄", label: "Vision Board" },
   { href: "/settings", icon: "⚙️", label: "Settings" },
 ];

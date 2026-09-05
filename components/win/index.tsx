@@ -76,3 +76,12 @@ export function Dialog({ title, open, onClose, children }: {
     </div>
   );
 }
+
+export function Progress({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div className="win-progress" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max}>
+      <div className="win-progress-fill" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
