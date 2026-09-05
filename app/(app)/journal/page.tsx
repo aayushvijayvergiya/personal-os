@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Habit, HabitEntry, JournalEntry, JournalQuestion, JournalType, Task } from "@/lib/types";
 import { addDays, fmt, isoWeekLabel, todayISO, weekStart } from "@/lib/dates";
 import { ensureDefaultQuestions } from "@/lib/journalDefaults";
-import { Window, Btn, TabBar, Check, TextArea } from "@/components/win";
+import { Btn, TabBar, Check } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 
 export default function JournalPage() {
@@ -19,6 +19,7 @@ export default function JournalPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitEntries, setHabitEntries] = useState<HabitEntry[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const effectiveDate = type === "weekly" ? weekStart(date) : date;
@@ -49,7 +50,7 @@ export default function JournalPage() {
       if (error) showToast(error.message); else setEntry(data as JournalEntry);
     }
   }, [type, effectiveDate]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setEntry(null); load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
+  useEffect(() => { setEntry(null); setTasksOpen(false); load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function saveEntry(patch: Partial<JournalEntry>) {
     if (!entry) return;
@@ -85,68 +86,105 @@ export default function JournalPage() {
 
   const heading = type === "daily" ? fmt(effectiveDate) : isoWeekLabel(effectiveDate);
   const step = type === "daily" ? 1 : 7;
+  const period = type === "daily" ? "day" : "week";
+  const habitChecked = (id: string) => habitEntries.some((e) => e.habit_id === id && e.checked);
+  const tasksDone = tasks.filter((t) => t.status === "done").length;
+  const answered = questions.filter((q) => (entry?.answers[q.id] ?? "").trim().length > 0).length;
 
   return (
     <div>
       <TabBar active={type} onSelect={(k) => setType(k as JournalType)}
         tabs={[{ key: "daily", label: "Daily" }, { key: "weekly", label: "Weekly" }]} />
       <div className="win-tabpanel">
-        <div className="mb-2 flex items-center gap-2">
-          <Btn onClick={() => setDate(addDays(effectiveDate, -step))}>◀</Btn>
-          <span className="min-w-40 text-center font-bold">{heading}</span>
-          <Btn onClick={() => setDate(addDays(effectiveDate, step))}>▶</Btn>
-          <Btn onClick={() => setDate(today)}>Today</Btn>
-          <span className="ml-auto text-xs text-[#666]">{saving ? "Saving…" : "Saved"}</span>
+        {/* ── toolbar strip ───────────────────────────────────────────── */}
+        <div className="bevel-out mb-2 flex flex-col gap-1 p-1.5">
+          <div className="flex items-center gap-2">
+            <Btn onClick={() => setDate(addDays(effectiveDate, -step))}>◀</Btn>
+            <span className="min-w-40 text-center font-bold">{heading}</span>
+            <Btn onClick={() => setDate(addDays(effectiveDate, step))}>▶</Btn>
+            <Btn onClick={() => setDate(today)}>Today</Btn>
+            <span className="ml-auto text-xs text-[#666]">{saving ? "Saving…" : "Saved"}</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-[#a0a0a0] pt-1">
+            {type === "daily" && (
+              <>
+                <span className="text-xs text-[#444]">✅</span>
+                {habits.length === 0
+                  ? <span className="text-xs text-[#666]">No habits configured.</span>
+                  : habits.map((h) => (
+                    <button key={h.id} aria-pressed={habitChecked(h.id)} title={h.name}
+                      className={`journal-chip ${habitChecked(h.id) ? "journal-chip-on" : ""}`}
+                      onClick={() => toggleHabit(h.id)}>
+                      {habitChecked(h.id) ? "☑" : "☐"} {h.icon} {h.name}
+                    </button>
+                  ))}
+
+                <span className="journal-sep" />
+
+                <div className="relative">
+                  <Btn className="px-2 py-0.5 text-xs" onClick={() => setTasksOpen((v) => !v)}>
+                    📋 {tasksDone} / {tasks.length} ▾
+                  </Btn>
+                  {tasksOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onMouseDown={() => setTasksOpen(false)} />
+                      <div className="win-window absolute left-0 top-full z-50 mt-1 w-64">
+                        <div className="win-titlebar">📋 Tasks for this {period}</div>
+                        <div className="win-body max-h-64 overflow-y-auto">
+                          {tasks.length === 0 && <p className="text-xs text-[#666]">No tasks due this {period}.</p>}
+                          {tasks.map((t) => (
+                            <div key={t.id} className="flex items-center gap-2 py-0.5 text-xs">
+                              <Check checked={t.status === "done"} onChange={() => toggleTask(t)} />
+                              <span className={t.status === "done" ? "text-[#666] line-through" : ""}>{t.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <span className="journal-sep" />
+              </>
+            )}
+
+            <span className="flex items-center gap-1">
+              <span className="text-xs text-[#444]" title={`${type === "daily" ? "Day" : "Week"} rating`}>⭐</span>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} className="journal-star" aria-pressed={entry?.day_rating === n}
+                  title={`${n} star${n > 1 ? "s" : ""}`} onClick={() => saveEntry({ day_rating: n })}>
+                  {(entry?.day_rating ?? 0) >= n ? "★" : "☆"}
+                </button>
+              ))}
+            </span>
+          </div>
         </div>
 
-        {type === "daily" && (
-          <Window title="Daily Habits" icon="✅" className="mb-2">
-            {habits.length === 0 && <p className="text-[#666]">No habits configured (see Habits page).</p>}
-            <div className="flex flex-wrap gap-4">
-              {habits.map((h) => (
-                <Check key={h.id} label={`${h.icon} ${h.name}`}
-                  checked={habitEntries.some((e) => e.habit_id === h.id && e.checked)}
-                  onChange={() => toggleHabit(h.id)} />
+        {/* ── notebook spread ─────────────────────────────────────────── */}
+        <div className="win-window">
+          <div className="win-titlebar">
+            <span>📖 Journal — {heading}</span>
+            <span className="font-normal">{answered} / {questions.length} answered</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            <div className="journal-page border-b-2 border-[#808080] p-4 md:border-b-0 md:border-r-2">
+              {questions.length === 0 && <p className="text-[#666]">No questions configured (see Settings).</p>}
+              {questions.map((q) => (
+                <div key={q.id} className="mb-4">
+                  <p className="journal-prompt">{q.prompt}</p>
+                  <textarea className="journal-input" rows={3} value={entry?.answers[q.id] ?? ""}
+                    onChange={(e) => entry && saveEntry({ answers: { ...entry.answers, [q.id]: e.target.value } })} />
+                </div>
               ))}
             </div>
-          </Window>
-        )}
-
-        {type === "daily" && (
-          <Window title="Tasks for this day" icon="📋" className="mb-2">
-            {tasks.length === 0 && <p className="text-[#666]">No tasks due this day.</p>}
-            {tasks.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 py-0.5">
-                <Check checked={t.status === "done"} onChange={() => toggleTask(t)} />
-                <span className={t.status === "done" ? "line-through text-[#666]" : ""}>{t.title}</span>
-              </div>
-            ))}
-          </Window>
-        )}
-
-        <Window title="Reflection" icon="💭" className="mb-2">
-          {questions.map((q) => (
-            <div key={q.id} className="mb-2">
-              <p className="mb-1 font-bold">{q.prompt}</p>
-              <TextArea value={entry?.answers[q.id] ?? ""}
-                onChange={(e) => entry && saveEntry({ answers: { ...entry.answers, [q.id]: e.target.value } })} />
+            <div className="journal-page p-4">
+              <p className="journal-prompt">Notes from the {period}</p>
+              <textarea className="journal-input" rows={14} value={entry?.notes ?? ""}
+                onChange={(e) => entry && saveEntry({ notes: e.target.value })} />
             </div>
-          ))}
-        </Window>
-
-        <Window title="Notes from the day" icon="🗒️" className="mb-2">
-          <TextArea rows={5} value={entry?.notes ?? ""}
-            onChange={(e) => entry && saveEntry({ notes: e.target.value })} />
-        </Window>
-
-        <Window title={type === "daily" ? "Day rating" : "Week rating"} icon="⭐">
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Btn key={n} className={entry?.day_rating === n ? "win-btn-primary" : ""}
-                onClick={() => saveEntry({ day_rating: n })}>{"★".repeat(n)}</Btn>
-            ))}
           </div>
-        </Window>
+        </div>
       </div>
     </div>
   );

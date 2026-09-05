@@ -80,6 +80,8 @@ export default function ProjectsPage() {
       title: detail.title, description: detail.description, due_date: detail.due_date || null,
       priority: detail.priority, status: detail.status, custom_fields: detail.custom_fields,
       project_id: detail.project_id,
+      completed_at: detail.status === "done"
+        ? detail.completed_at ?? new Date().toISOString() : null,
     }).eq("id", detail.id);
     if (error) return showToast(error.message);
     setDetail(null); load();

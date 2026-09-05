@@ -1,10 +1,10 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Category, CustomFields, Goal, GoalStatus, HorizonType } from "@/lib/types";
 import { todayISO } from "@/lib/dates";
 import { currentValues, groupGoals, horizonLabel, isCurrent, isPast } from "@/lib/horizons";
-import { Window, Btn, Input, Select, Dialog, TextArea } from "@/components/win";
+import { Window, Btn, Input, Select, Dialog, TextArea, Progress } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
 
@@ -13,15 +13,21 @@ const STATUS_OPTS = [
   { value: "in_progress", label: "In Progress" },
   { value: "done", label: "Done" },
 ];
-const SECTIONS: { key: "date" | "month" | "quarter" | "year"; title: string }[] = [
-  { key: "date", title: "📅 Dated Goals" }, { key: "month", title: "🗓️ Monthly Goals" },
-  { key: "quarter", title: "🧭 Quarterly Goals" }, { key: "year", title: "🏆 Yearly Goals" },
+type SectionKey = "date" | "month" | "quarter" | "year";
+const SECTIONS: { key: SectionKey; icon: string; short: string; title: string }[] = [
+  { key: "date", icon: "📅", short: "Dated", title: "Dated Goals" },
+  { key: "month", icon: "🗓️", short: "Month", title: "Monthly Goals" },
+  { key: "quarter", icon: "🧭", short: "Quarter", title: "Quarterly Goals" },
+  { key: "year", icon: "🏆", short: "Year", title: "Yearly Goals" },
 ];
+const ORDER: Record<HorizonType, number> = { date: 0, month: 1, quarter: 2, year: 3 };
 const emptyDraft = (today: string): Partial<Goal> => ({
   title: "", description: "", horizon_type: "month",
   horizon_value: currentValues(today).month, category_id: null,
   status: "not_started", custom_fields: {},
 });
+
+type Selection = { type: SectionKey | "all"; value?: string };
 
 export default function GoalsPage() {
   const supabase = createClient();
@@ -30,6 +36,8 @@ export default function GoalsPage() {
   const [cats, setCats] = useState<Category[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<Goal> | null>(null);
+  const [sel, setSel] = useState<Selection>({ type: "all" });
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ month: true });
 
   const load = useCallback(async () => {
     const [g, c] = await Promise.all([
@@ -74,44 +82,135 @@ export default function GoalsPage() {
     setDraft(null); load();
   }
 
-  const visible = filter ? goals.filter((g) => g.category_id === filter) : goals;
-  const grouped = groupGoals(visible);
+  const visible = useMemo(
+    () => (filter ? goals.filter((g) => g.category_id === filter) : goals), [goals, filter]);
+  const byType = useMemo(() => groupGoals(visible), [visible]);
+  const periods = useCallback((k: SectionKey) => {
+    const m = new Map<string, number>();
+    for (const g of byType[k]) m.set(g.horizon_value, (m.get(g.horizon_value) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [byType]);
+
+  const shown = useMemo(() => {
+    const list = sel.type === "all"
+      ? [...visible]
+      : byType[sel.type].filter((g) => !sel.value || g.horizon_value === sel.value);
+    return list.sort((a, b) =>
+      ORDER[a.horizon_type] - ORDER[b.horizon_type] || a.horizon_value.localeCompare(b.horizon_value));
+  }, [sel, visible, byType]);
+
+  const meta = SECTIONS.find((s) => s.key === sel.type);
+  const paneTitle = sel.type === "all" ? "All Goals"
+    : `${meta!.title}${sel.value ? ` — ${horizonLabel(sel.type, sel.value)}` : ""}`;
+  const shownDone = shown.filter((g) => g.status === "done").length;
   const statusIcon = (s: GoalStatus) => (s === "done" ? "✅" : s === "in_progress" ? "🔵" : "⚪");
+  const isSel = (type: SectionKey | "all", value?: string) => sel.type === type && sel.value === value;
 
   return (
     <div className="flex flex-col gap-2">
       <Window title="Goals" icon="🎯" actions={<Btn onClick={() => setDraft(emptyDraft(today))}>New Goal</Btn>}>
-        <div className="flex flex-wrap gap-1">
-          <Btn className={!filter ? "win-btn-primary" : ""} onClick={() => setFilter(null)}>All</Btn>
-          {cats.map((c) => (
-            <Btn key={c.id} className={filter === c.id ? "win-btn-primary" : ""}
-              style={{ borderLeft: `6px solid ${c.color}` }} onClick={() => setFilter(c.id)}>{c.name}</Btn>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-[#444]">
+          <span><b>{goals.length}</b> goals</span>
+          <span>·</span>
+          <span><b>{goals.filter((g) => g.status === "done").length}</b> done</span>
+          <span>·</span>
+          <span><b>{goals.filter((g) => g.status === "in_progress").length}</b> in progress</span>
         </div>
       </Window>
 
-      {SECTIONS.map(({ key, title }) => (
-        <Window key={key} title={title}>
-          {grouped[key].length === 0 && <p className="text-[#666]">Nothing here yet.</p>}
-          {grouped[key].map((g) => {
-            const cat = cats.find((c) => c.id === g.category_id);
-            const past = g.status !== "done" && isPast(g.horizon_type, g.horizon_value, today);
-            const cur = isCurrent(g.horizon_type, g.horizon_value, today);
-            return (
-              <div key={g.id} className={`mb-1 flex items-center gap-2 bevel-in px-2 py-1 ${cur ? "bg-[#ffffe1]" : "bg-white"}`}>
-                <button title="Cycle status" onClick={() => cycleStatus(g)}>{statusIcon(g.status)}</button>
-                <button className="flex-1 text-left" onClick={() => setDraft({ ...g })}>
-                  <span className={g.status === "done" ? "line-through text-[#666]" : ""}>{g.title}</span>
+      <div className="grid grid-cols-1 items-start gap-2 lg:grid-cols-[1fr_3fr]">
+        {/* ── tree pane — 25% ─────────────────────────────────────────── */}
+        <div className="flex min-w-0 flex-col gap-2">
+          <Window title="Horizons" icon="📂" className="lg:sticky lg:top-0">
+            <div className="-mx-2.5 -my-1">
+              <button className={`tree-node ${isSel("all") ? "tree-node-active" : ""}`}
+                onClick={() => setSel({ type: "all" })}>
+                <span className="w-4">🎯</span>
+                <span className="flex-1 truncate">All Goals</span>
+                <span className="tree-count">{visible.length}</span>
+              </button>
+              {SECTIONS.map(({ key, icon, short }) => (
+                <div key={key}>
+                  <div className={`tree-node ${isSel(key) ? "tree-node-active" : ""}`}>
+                    <button className="w-4 shrink-0" title={expanded[key] ? "Collapse" : "Expand"}
+                      onClick={() => setExpanded((e) => ({ ...e, [key]: !e[key] }))}>
+                      {expanded[key] ? "⊟" : "⊞"}
+                    </button>
+                    <button className="flex-1 truncate text-left" onClick={() => setSel({ type: key })}>
+                      {icon} {short}
+                    </button>
+                    <span className="tree-count">{byType[key].length}</span>
+                  </div>
+                  {expanded[key] && periods(key).map(([value, n]) => (
+                    <button key={value} className={`tree-node tree-child ${isSel(key, value) ? "tree-node-active" : ""}`}
+                      onClick={() => setSel({ type: key, value })}>
+                      <span className="flex-1 truncate">▪ {horizonLabel(key, value)}</span>
+                      <span className="tree-count">{n}</span>
+                    </button>
+                  ))}
+                  {expanded[key] && periods(key).length === 0 && (
+                    <p className="tree-child py-0.5 text-xs text-[#666]">— empty —</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Window>
+
+          <Window title="Categories" icon="🏷️">
+            <div className="-mx-2.5 -my-1">
+              <button className={`tree-node ${!filter ? "tree-node-active" : ""}`} onClick={() => setFilter(null)}>
+                <span className="tree-swatch" style={{ background: "var(--face)" }} />
+                <span className="flex-1 truncate">All categories</span>
+                <span className="tree-count">{goals.length}</span>
+              </button>
+              {cats.map((c) => (
+                <button key={c.id} className={`tree-node ${filter === c.id ? "tree-node-active" : ""}`}
+                  onClick={() => setFilter(filter === c.id ? null : c.id)}>
+                  <span className="tree-swatch" style={{ background: c.color }} />
+                  <span className="flex-1 truncate">{c.name}</span>
+                  <span className="tree-count">{goals.filter((g) => g.category_id === c.id).length}</span>
                 </button>
-                {cat && <span className="px-2 text-xs" style={{ background: cat.color, color: "#fff" }}>{cat.name}</span>}
-                <span className={`text-xs ${past ? "font-bold text-[#aa0000]" : "text-[#444]"}`}>
-                  {horizonLabel(g.horizon_type, g.horizon_value)}{past ? " !" : ""}
-                </span>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          </Window>
+        </div>
+
+        {/* ── detail pane — 75% ───────────────────────────────────────── */}
+        <Window title={paneTitle} icon={sel.type === "all" ? "🎯" : meta!.icon}>
+          {shown.length > 0 && (
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex-1"><Progress value={shownDone} max={shown.length} /></div>
+              <span className="shrink-0 text-xs font-bold text-[#444]">{shownDone} / {shown.length} complete</span>
+            </div>
+          )}
+          {shown.length === 0 && <p className="text-[#666]">Nothing here yet.</p>}
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 2xl:grid-cols-3">
+            {shown.map((g) => {
+              const cat = cats.find((c) => c.id === g.category_id);
+              const past = g.status !== "done" && isPast(g.horizon_type, g.horizon_value, today);
+              const cur = isCurrent(g.horizon_type, g.horizon_value, today);
+              return (
+                <div key={g.id} className={`goal-card ${cur ? "bg-[#ffffe1]" : "bg-white"}`}
+                  style={{ borderLeft: `6px solid ${cat?.color ?? "#808080"}` }}>
+                  <div className="flex items-start gap-2">
+                    <button title="Cycle status" onClick={() => cycleStatus(g)}>{statusIcon(g.status)}</button>
+                    <button className="flex-1 text-left" onClick={() => setDraft({ ...g })}>
+                      <span className={g.status === "done" ? "text-[#666] line-through" : "font-bold"}>{g.title}</span>
+                    </button>
+                  </div>
+                  {g.description && <p className="mt-1 line-clamp-2 text-xs text-[#444]">{g.description}</p>}
+                  <div className="mt-2 flex items-center gap-2">
+                    {cat && <span className="px-1.5 text-xs" style={{ background: cat.color, color: "#fff" }}>{cat.name}</span>}
+                    <span className={`ml-auto text-xs ${past ? "font-bold text-[#aa0000]" : "text-[#444]"}`}>
+                      {horizonLabel(g.horizon_type, g.horizon_value)}{past ? " !" : ""}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </Window>
-      ))}
+      </div>
 
       <Dialog title="Goal Properties" open={!!draft} onClose={() => setDraft(null)}>
         {draft && (

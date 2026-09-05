@@ -31,9 +31,11 @@ export interface JournalEntry {
 export interface Note { id: string; title: string | null; body: string; pinned: boolean; created_at: string; }
 export interface Book {
   id: string; title: string; author: string | null;
+  item_type: "book" | "article";
   status: "to_read" | "reading" | "finished"; rating: number | null;
   takeaways: string | null; link: string | null;
-  started_at: string | null; finished_at: string | null; sort_order: number;
+  started_at: string | null; finished_at: string | null;
+  due_date: string | null; sort_order: number;
 }
 export interface FieldDefinition {
   id: string; entity: "task" | "goal"; name: string;

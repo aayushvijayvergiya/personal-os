@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Goal, Task } from "@/lib/types";
+import type { Book, Goal, Task } from "@/lib/types";
 import { addDays, fmt, monthRange, todayISO, weekRange } from "@/lib/dates";
 import { horizonLabel } from "@/lib/horizons";
 import { Window, Btn, Input } from "@/components/win";
@@ -14,19 +14,23 @@ export default function CalendarPage() {
   const [anchor, setAnchor] = useState(todayISO());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [articles, setArticles] = useState<Book[]>([]);
   const [dayOpen, setDayOpen] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
 
   const range = mode === "month" ? monthRange(anchor) : weekRange(anchor);
 
   const load = useCallback(async () => {
-    const [t, g] = await Promise.all([
+    const [t, g, a] = await Promise.all([
       supabase.from("tasks").select("*").is("project_id", null)
         .gte("due_date", addDays(range.start, -7)).lte("due_date", addDays(range.end, 7)),
       supabase.from("goals").select("*"),
+      supabase.from("books").select("*").eq("item_type", "article")
+        .gte("due_date", addDays(range.start, -7)).lte("due_date", addDays(range.end, 7)),
     ]);
     if (t.error) showToast(t.error.message); else setTasks(t.data as Task[]);
     if (!g.error) setGoals(g.data as Goal[]);
+    if (!a.error) setArticles(a.data as Book[]);
   }, [range.start, range.end]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
@@ -38,7 +42,10 @@ export default function CalendarPage() {
     ...goals.filter((g) => g.horizon_type === "date").map((g) => ({
       id: g.id, date: g.horizon_value, label: `🎯 ${g.title}`, done: g.status === "done", color: "#008080",
     })),
-  ], [tasks, goals]);
+    ...articles.filter((a) => a.due_date).map((a) => ({
+      id: a.id, date: a.due_date!, label: `📰 ${a.title}`, done: a.status === "finished", color: "#800080",
+    })),
+  ], [tasks, goals, articles]);
 
   const banners = useMemo(() => {
     const [y, m] = anchor.split("-").map(Number);
@@ -70,6 +77,7 @@ export default function CalendarPage() {
   }
 
   const dayTasks = tasks.filter((t) => t.due_date === dayOpen);
+  const dayArticles = articles.filter((a) => a.due_date === dayOpen);
   const monthName = new Date(Number(anchor.slice(0, 4)), Number(anchor.slice(5, 7)) - 1)
     .toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
@@ -89,8 +97,13 @@ export default function CalendarPage() {
       {dayOpen && (
         <div className="mt-2 bevel-out p-2">
           <p className="mb-1 font-bold">{fmt(dayOpen)}</p>
-          {dayTasks.length === 0 && <p className="text-[#666]">Nothing due.</p>}
+          {dayTasks.length === 0 && dayArticles.length === 0 && <p className="text-[#666]">Nothing due.</p>}
           {dayTasks.map((t) => <p key={t.id}>• {t.title}{t.status === "done" ? " ✔" : ""}</p>)}
+          {dayArticles.map((a) => (
+            <p key={a.id}>📰 {a.link
+              ? <a className="text-[#000080] underline" href={a.link} target="_blank">{a.title}</a>
+              : a.title}{a.status === "finished" ? " ✔" : ""}</p>
+          ))}
           <div className="mt-1 flex gap-2">
             <Input placeholder="Quick add task for this day…" value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}

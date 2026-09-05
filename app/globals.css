@@ -65,3 +65,70 @@ body {
 ::-webkit-scrollbar { width: 16px; height: 16px; }
 ::-webkit-scrollbar-track { background: repeating-conic-gradient(#fff 0% 25%, var(--face) 0% 50%) 0 0/4px 4px; }
 ::-webkit-scrollbar-thumb { background: var(--face); border: 2px solid; border-color: #fff var(--dark) var(--dark) #fff; }
+
+.win-progress { border: 2px solid; border-color: var(--dark) #fff #fff var(--dark); background: #fff; height: 16px; padding: 1px; }
+.win-progress-fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--title-a) 0 9px, #fff 9px 11px);
+}
+
+.habit-row { border-bottom: 1px solid #b0b0b0; }
+.habit-row:last-child { border-bottom: none; }
+
+.habit-dot { width: 9px; height: 9px; display: inline-block; border: 1px solid var(--dark); background: #fff; }
+.habit-dot-on { background: var(--title-a); border-color: var(--darker); }
+
+.glance-row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; border-bottom: 1px dotted #a0a0a0; }
+.glance-row:last-child { border-bottom: none; }
+
+.tree-node {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 3px 6px; font-size: 12px; text-align: left; cursor: pointer; color: #000;
+}
+.tree-node:hover { background: var(--title-a); color: #fff; }
+.tree-node-active { background: var(--title-a); color: #fff; }
+.tree-child { padding-left: 26px; }
+.tree-count { font-size: 11px; opacity: 0.75; }
+.tree-swatch { width: 10px; height: 10px; flex-shrink: 0; border: 1px solid var(--darker); }
+
+.goal-card { border: 2px solid; border-color: var(--dark) #fff #fff var(--dark); padding: 8px; }
+
+.journal-chip {
+  border: 2px solid; border-color: #fff var(--dark) var(--dark) #fff;
+  background: var(--face); padding: 1px 6px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.journal-chip-on { border-color: var(--dark) #fff #fff var(--dark); background: #ffffe1; font-weight: bold; }
+.journal-sep { width: 2px; align-self: stretch; border-left: 1px solid var(--dark); border-right: 1px solid #fff; }
+.journal-star { font-size: 15px; line-height: 1; padding: 0 1px; cursor: pointer; }
+
+.journal-page { background: #fffdf5; }
+.journal-prompt { font-size: 12px; font-weight: bold; color: var(--title-a); margin-bottom: 2px; }
+.journal-input {
+  width: 100%; border: none; outline: none; resize: vertical;
+  font-family: inherit; font-size: 13px; line-height: 22px; color: #000; padding: 0 4px;
+  background: repeating-linear-gradient(transparent 0 21px, #d8d2c0 21px 22px);
+  background-attachment: local;
+}
+
+.settings-group {
+  font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #444; margin: 0 0 6px; padding-bottom: 2px; border-bottom: 1px solid var(--dark);
+}
+.settings-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%;
+  padding: 10px 6px; text-align: center; cursor: pointer; background: transparent;
+  border: 2px solid transparent;
+}
+.settings-tile:hover { border-color: #fff var(--dark) var(--dark) #fff; background: var(--face); }
+.settings-tile:active { border-color: var(--dark) #fff #fff var(--dark); }
+.settings-tile-icon { font-size: 28px; line-height: 1.1; }
+.settings-tile-title { font-size: 12px; font-weight: bold; }
+.settings-tile-sub { font-size: 11px; color: #444; }
+
+.settings-rail { border-right: 2px solid var(--dark); background: var(--face); }
+.settings-rail-btn {
+  display: block; width: 100%; padding: 6px 8px; font-size: 18px; line-height: 1;
+  cursor: pointer; border: 2px solid transparent;
+}
+.settings-rail-btn:hover { border-color: #fff var(--dark) var(--dark) #fff; }
+.settings-rail-btn-active { border-color: var(--dark) #fff #fff var(--dark); background: #fff; }
