@@ -2,20 +2,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomFields, Task } from "@/lib/types";
-import { todayISO, weekRange, monthRange, fmt } from "@/lib/dates";
+import { todayISO, toISO, fmt, completedAtForDate } from "@/lib/dates";
 import { PRIORITY_OPTS, priorityClass } from "@/lib/taskUi";
+import { TASK_TABS, taskFilterFor, taskOrClause, type TaskTab } from "@/lib/taskFilters";
 import { Btn, Input, Select, TabBar, Dialog, Check, TextArea } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
 
-const TABS = [
-  { key: "today", label: "Today" }, { key: "week", label: "This Week" },
-  { key: "month", label: "This Month" }, { key: "all", label: "All" }, { key: "done", label: "Done" },
-];
-
 export default function TasksPage() {
   const [supabase] = useState(() => createClient());
-  const [tab, setTab] = useState("today");
+  const [tab, setTab] = useState<TaskTab>("today");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
   const [due, setDue] = useState(todayISO());
@@ -27,13 +23,12 @@ export default function TasksPage() {
   const load = useCallback(async () => {
     let q = supabase.from("tasks").select("*").is("project_id", null)
       .order("due_date", { ascending: true, nullsFirst: false }).order("priority");
-    if (tab === "done") q = q.eq("status", "done");
-    else {
-      if (!showDone) q = q.neq("status", "done");
-      if (tab === "today") q = q.lte("due_date", today);
-      if (tab === "week") q = q.lte("due_date", weekRange(today).end);
-      if (tab === "month") q = q.lte("due_date", monthRange(today).end);
-    }
+    const f = taskFilterFor(tab, showDone, today);
+    const or = taskOrClause(f);
+    if (f.onlyDone) q = q.eq("status", "done");
+    if (f.excludeDone) q = q.neq("status", "done");
+    if (or) q = q.or(or);
+    else if (f.dueLte) q = q.lte("due_date", f.dueLte);
     const { data, error } = await q;
     if (error) showToast(error.message);
     else setTasks(data as Task[]);
@@ -76,7 +71,7 @@ export default function TasksPage() {
 
   return (
     <div>
-      <TabBar tabs={TABS} active={tab} onSelect={setTab} />
+      <TabBar tabs={TASK_TABS} active={tab} onSelect={(k) => setTab(k as TaskTab)} />
       <div className="win-tabpanel">
         <div className="mb-3 flex gap-2">
           <Input placeholder="New task title…" value={title} onChange={(e) => setTitle(e.target.value)}
@@ -131,6 +126,11 @@ export default function TasksPage() {
               <Select value={detail.status} options={[
                 { value: "open", label: "Open" }, { value: "in_progress", label: "In Progress" }, { value: "done", label: "Done" },
               ]} onChange={(e) => setDetail({ ...detail, status: e.target.value as Task["status"] })} /></div>
+            {detail.status === "done" && (
+              <div className="field-row"><label>Completed:</label>
+                <input type="date" className="win-input" value={detail.completed_at ? toISO(new Date(detail.completed_at)) : today}
+                  onChange={(e) => e.target.value && setDetail({ ...detail, completed_at: completedAtForDate(detail.completed_at, e.target.value) })} /></div>
+            )}
             <div className="field-row"><label>Description:</label>
               <TextArea value={detail.description ?? ""}
                 onChange={(e) => setDetail({ ...detail, description: e.target.value })} /></div>

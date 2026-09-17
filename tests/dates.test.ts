@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toISO, addDays, weekStart, weekDates, weekRange, monthRange, monthGridDates, isoWeekLabel, fmt } from "@/lib/dates";
+import { toISO, addDays, weekStart, weekDates, weekRange, monthRange, monthGridDates, isoWeekLabel, fmt, completedAtForDate } from "@/lib/dates";
 
 describe("dates", () => {
   it("toISO formats local date", () => {
@@ -37,5 +37,19 @@ describe("dates", () => {
   });
   it("fmt", () => {
     expect(fmt("2026-07-19")).toBe("Sun, Jul 19");
+  });
+});
+
+describe("completedAtForDate", () => {
+  it("keeps the existing timestamp when it already falls on the chosen local day", () => {
+    const existing = new Date(2026, 6, 19, 9, 30).toISOString();
+    expect(completedAtForDate(existing, "2026-07-19")).toBe(existing);
+  });
+  it("moves to local noon of the chosen day otherwise", () => {
+    const existing = new Date(2026, 6, 19, 9, 30).toISOString();
+    expect(completedAtForDate(existing, "2026-07-10")).toBe(new Date(2026, 6, 10, 12, 0).toISOString());
+  });
+  it("uses local noon when there is no existing timestamp", () => {
+    expect(completedAtForDate(null, "2026-07-10")).toBe(new Date(2026, 6, 10, 12, 0).toISOString());
   });
 });

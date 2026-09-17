@@ -48,3 +48,13 @@ export function isoWeekLabel(iso: string): string {
 export function fmt(iso: string): string {
   return fromISO(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
+/**
+ * The `completed_at` to store when the user picks a completion date. Keeps the original
+ * timestamp if it already falls on that local day; otherwise local noon, so the stored
+ * instant can't drift into a neighbouring day in UTC.
+ */
+export function completedAtForDate(existing: string | null, dateIso: string): string {
+  if (existing && toISO(new Date(existing)) === dateIso) return existing;
+  const d = fromISO(dateIso); d.setHours(12, 0, 0, 0);
+  return d.toISOString();
+}

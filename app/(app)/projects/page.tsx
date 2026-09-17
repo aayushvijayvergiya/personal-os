@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CustomFields, Project, Task } from "@/lib/types";
-import { addDays, fmt, todayISO } from "@/lib/dates";
+import { addDays, fmt, todayISO, toISO, completedAtForDate } from "@/lib/dates";
 import { PRIORITY_OPTS, priorityClass } from "@/lib/taskUi";
 import { Window, Btn, Input, Select, TabBar, Dialog, Check, TextArea } from "@/components/win";
 import { showToast } from "@/components/win/toast";
@@ -239,6 +239,11 @@ export default function ProjectsPage() {
               <Select value={detail.status} options={[
                 { value: "open", label: "Open" }, { value: "in_progress", label: "In Progress" }, { value: "done", label: "Done" },
               ]} onChange={(e) => setDetail({ ...detail, status: e.target.value as Task["status"] })} /></div>
+            {detail.status === "done" && (
+              <div className="field-row"><label>Completed:</label>
+                <input type="date" className="win-input" value={detail.completed_at ? toISO(new Date(detail.completed_at)) : today}
+                  onChange={(e) => e.target.value && setDetail({ ...detail, completed_at: completedAtForDate(detail.completed_at, e.target.value) })} /></div>
+            )}
             <div className="field-row"><label>Description:</label>
               <TextArea value={detail.description ?? ""}
                 onChange={(e) => setDetail({ ...detail, description: e.target.value })} /></div>
