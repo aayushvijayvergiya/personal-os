@@ -29,10 +29,10 @@ describe("filterQuestionsForDate", () => {
     expect(filterQuestionsForDate(questions, "weekly", "2026-07-06")).toEqual([]);
   });
 
-  it("keeps a question retired today on today's daily entry and every past entry, but not tomorrow's", () => {
+  it("hides a question retired today from today's daily entry immediately, but keeps it on past entries", () => {
     const questions = [q({ retired_on: "2026-07-19" })];
     expect(filterQuestionsForDate(questions, "daily", "2026-07-18")).toEqual(questions);
-    expect(filterQuestionsForDate(questions, "daily", "2026-07-19")).toEqual(questions);
+    expect(filterQuestionsForDate(questions, "daily", "2026-07-19")).toEqual([]);
     expect(filterQuestionsForDate(questions, "daily", "2026-07-20")).toEqual([]);
   });
 

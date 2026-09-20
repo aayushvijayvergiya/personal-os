@@ -33,5 +33,5 @@ export function filterQuestionsForDate(
   date: string,
 ): JournalQuestion[] {
   const windowEnd = type === "weekly" ? addDays(date, 6) : date;
-  return questions.filter((q) => q.created_on <= windowEnd && (!q.retired_on || date <= q.retired_on));
+  return questions.filter((q) => q.created_on <= windowEnd && (!q.retired_on || date < q.retired_on));
 }
