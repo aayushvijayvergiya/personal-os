@@ -50,7 +50,7 @@ export default function JournalQuestionsPanel() {
     const { data: created, error: insertErr } = await supabase.from("journal_questions")
       .insert({ prompt: newPrompt, journal_type: q.journal_type, sort_order: q.sort_order, created_on: today })
       .select().single();
-    if (insertErr) return showToast(insertErr.message);
+    if (insertErr) { showToast(insertErr.message); return load(); } // old row is already retired — refresh so the list reflects that even though the rename failed
     const newQuestion = created as JournalQuestion;
     const currentDate = q.journal_type === "weekly" ? weekStart(today) : today;
     const { data: existing } = await supabase.from("journal_entries").select("*")
@@ -61,7 +61,8 @@ export default function JournalQuestionsPanel() {
       const answers = { ...entry.answers };
       delete answers[q.id];
       answers[newQuestion.id] = value;
-      await supabase.from("journal_entries").update({ answers }).eq("id", entry.id);
+      const { error: carryErr } = await supabase.from("journal_entries").update({ answers }).eq("id", entry.id);
+      if (carryErr) showToast(carryErr.message);
     }
     load();
   }
