@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Habit, HabitEntry, JournalEntry, JournalQuestion, JournalType, Task } from "@/lib/types";
 import { addDays, fmt, isoWeekLabel, todayISO, weekStart } from "@/lib/dates";
-import { ensureDefaultQuestions } from "@/lib/journalDefaults";
+import { ensureDefaultQuestions, filterQuestionsForDate } from "@/lib/journalDefaults";
 import { Btn, TabBar, Check } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 
@@ -38,7 +38,7 @@ export default function JournalPage() {
       supabase.from("journal_entries").select("*").eq("date", effectiveDate).eq("type", type).maybeSingle(),
     ]);
     if (q.error) return showToast(q.error.message);
-    setQuestions(q.data as JournalQuestion[]);
+    setQuestions(filterQuestionsForDate((q.data ?? []) as JournalQuestion[], type, effectiveDate));
     setHabits((h.data as Habit[]) ?? []);
     setHabitEntries((he.data as HabitEntry[]) ?? []);
     setTasks((t.data as Task[]) ?? []);
