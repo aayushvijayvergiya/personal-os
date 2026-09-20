@@ -865,6 +865,7 @@ export function useJournalQuestionMutations() {
         .eq("date", currentDate)
         .eq("type", question.journal_type)
         .maybeSingle();
+      if (existing.error) toastError(existing.error); // best-effort: the rename already succeeded, this only affects carry-over
       const entry = existing.data as JournalEntry | null;
       const value = entry?.answers[question.id];
       if (entry && value) {
@@ -919,6 +920,7 @@ function QuestionPromptInput({
       onBlur={() => {
         const trimmed = text.trim();
         if (trimmed && trimmed !== question.prompt) onCommit(trimmed);
+        else setText(question.prompt); // undo a cleared-then-blurred field back to the real prompt
       }}
     />
   );
