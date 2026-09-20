@@ -23,6 +23,7 @@ export interface Habit { id: string; name: string; icon: string; active: boolean
 export interface HabitEntry { id: string; habit_id: string; date: string; checked: boolean; }
 export interface JournalQuestion {
   id: string; prompt: string; journal_type: JournalType; sort_order: number; active: boolean;
+  created_on: string; retired_on: string | null;
 }
 export interface JournalEntry {
   id: string; date: string; type: JournalType;
