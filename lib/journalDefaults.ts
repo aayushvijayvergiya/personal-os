@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addDays } from "./dates";
+import { addDays, todayISO } from "./dates";
 import type { JournalQuestion, JournalType } from "./types";
 
 const DAILY = ["What went well today?", "What could have gone better?", "What am I grateful for?"];
@@ -13,9 +13,10 @@ export function ensureDefaultQuestions(supabase: SupabaseClient): Promise<void> 
       .select("*", { count: "exact", head: true });
     if (error) { ensured = null; throw error; }
     if (count && count > 0) return;
+    const created_on = todayISO();
     const { error: insErr } = await supabase.from("journal_questions").insert([
-      ...DAILY.map((prompt, i) => ({ prompt, journal_type: "daily", sort_order: i })),
-      ...WEEKLY.map((prompt, i) => ({ prompt, journal_type: "weekly", sort_order: i })),
+      ...DAILY.map((prompt, i) => ({ prompt, journal_type: "daily", sort_order: i, created_on })),
+      ...WEEKLY.map((prompt, i) => ({ prompt, journal_type: "weekly", sort_order: i, created_on })),
     ]);
     if (insErr) { ensured = null; throw insErr; }
   })();

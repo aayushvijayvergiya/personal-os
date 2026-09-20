@@ -44,17 +44,18 @@ export default function JournalQuestionsPanel() {
     const newPrompt = text.trim();
     if (!newPrompt || newPrompt === q.prompt) return;
     const today = todayISO();
+    const effective = q.journal_type === "weekly" ? weekStart(today) : today;
     const { error: retireErr } = await supabase.from("journal_questions")
-      .update({ retired_on: today }).eq("id", q.id);
+      .update({ retired_on: effective }).eq("id", q.id);
     if (retireErr) return showToast(retireErr.message);
     const { data: created, error: insertErr } = await supabase.from("journal_questions")
-      .insert({ prompt: newPrompt, journal_type: q.journal_type, sort_order: q.sort_order, created_on: today })
+      .insert({ prompt: newPrompt, journal_type: q.journal_type, sort_order: q.sort_order, created_on: effective, active: q.active })
       .select().single();
     if (insertErr) { showToast(insertErr.message); return load(); } // old row is already retired — refresh so the list reflects that even though the rename failed
     const newQuestion = created as JournalQuestion;
-    const currentDate = q.journal_type === "weekly" ? weekStart(today) : today;
-    const { data: existing } = await supabase.from("journal_entries").select("*")
-      .eq("date", currentDate).eq("type", q.journal_type).maybeSingle();
+    const { data: existing, error: existingErr } = await supabase.from("journal_entries").select("*")
+      .eq("date", effective).eq("type", q.journal_type).maybeSingle();
+    if (existingErr) showToast(existingErr.message);
     const entry = existing as JournalEntry | null;
     const value = entry?.answers[q.id];
     if (entry && value) {

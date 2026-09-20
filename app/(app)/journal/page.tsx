@@ -38,7 +38,7 @@ export default function JournalPage() {
       supabase.from("journal_entries").select("*").eq("date", effectiveDate).eq("type", type).maybeSingle(),
     ]);
     if (q.error) return showToast(q.error.message);
-    setQuestions(filterQuestionsForDate(q.data as JournalQuestion[], type, effectiveDate));
+    setQuestions(filterQuestionsForDate((q.data ?? []) as JournalQuestion[], type, effectiveDate));
     setHabits((h.data as Habit[]) ?? []);
     setHabitEntries((he.data as HabitEntry[]) ?? []);
     setTasks((t.data as Task[]) ?? []);
