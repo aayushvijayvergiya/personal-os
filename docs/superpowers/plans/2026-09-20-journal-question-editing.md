@@ -667,15 +667,15 @@ describe("JournalQuestionsPanel", () => {
   it("commits an edited prompt on blur", async () => {
     const { getByDisplayValue } = await renderWithProviders(<JournalQuestionsPanel />);
     const field = getByDisplayValue("What went well today?");
-    fireEvent.changeText(field, "What went great today?");
-    fireEvent(field, "blur");
+    await fireEvent.changeText(field, "What went great today?");
+    await fireEvent(field, "blur");
     expect(edit.mutate).toHaveBeenCalledWith({ question: dailyQuestion, prompt: "What went great today?" });
   });
 
   it("does not commit on blur when the text is unchanged", async () => {
     const { getByDisplayValue } = await renderWithProviders(<JournalQuestionsPanel />);
     const field = getByDisplayValue("What went well today?");
-    fireEvent(field, "blur");
+    await fireEvent(field, "blur");
     expect(edit.mutate).not.toHaveBeenCalled();
   });
 
@@ -684,7 +684,7 @@ describe("JournalQuestionsPanel", () => {
       buttons?.find((b) => b.text === "Remove")?.onPress?.();
     });
     const { getByText } = await renderWithProviders(<JournalQuestionsPanel />);
-    fireEvent.press(getByText("Remove"));
+    await fireEvent.press(getByText("Remove"));
     expect(remove.mutate).toHaveBeenCalledWith("q1");
   });
 });
