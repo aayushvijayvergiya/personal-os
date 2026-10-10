@@ -8,7 +8,7 @@
 ## Decisions (agreed)
 - Repeating task: **spawn next occurrence on completion**; next due date is **anchored to the schedule**, not the completion date.
 - Habit schedule changes are **retroactive**: stats are always computed from the current schedule over all past check-ins. No schedule history table.
-- Monthly repeat = same day-of-month, clamped to month end.
+- Monthly repeat = the stored `day` of month, clamped to month end (stored in the rule so clamping never drifts).
 
 ## Out of scope
 End dates / occurrence counts, "repeat after completion" mode, times of day, habits every N days, back-filling past occurrences, calendar changes.
@@ -18,7 +18,7 @@ End dates / occurrence counts, "repeat after completion" mode, times of day, hab
 type Recurrence =
   | { freq: "daily";   interval: number }
   | { freq: "weekly";  interval: number; days: number[] }  // 0=Mon..6=Sun, non-empty
-  | { freq: "monthly"; interval: number };
+  | { freq: "monthly"; interval: number; day: number };  // day-of-month 1..31, stored so Jan 31 → Feb 28 → Mar 31 does not drift
 ```
 - `nextOccurrence(rule, afterIso): string` — first matching date strictly after `afterIso`. Weekly with interval > 1 counts weeks from the ISO week of `afterIso`'s anchor week (the week containing the previous due date).
 - `isScheduled(days: number[], iso): boolean`
