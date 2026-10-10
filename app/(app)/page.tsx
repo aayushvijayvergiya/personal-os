@@ -6,6 +6,7 @@ import type { Book, Goal, Habit, HabitEntry, Note, Task } from "@/lib/types";
 import { addDays, fmt, fromISO, todayISO } from "@/lib/dates";
 import { computeStreaks } from "@/lib/streaks";
 import { completeTask } from "@/lib/taskRecurrence";
+import { isScheduled } from "@/lib/recurrence";
 import { currentValues } from "@/lib/horizons";
 import { isOverdue, sortReadingItems } from "@/lib/reading";
 import { Window, Check, Btn, Progress } from "@/components/win";
@@ -80,9 +81,10 @@ export default function Dashboard() {
 
   const last7 = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, i - 6)), [today]);
   const streaks = useMemo(() => new Map(habits.map((h) => [h.id, computeStreaks(
-    entries.filter((e) => e.habit_id === h.id && e.checked).map((e) => e.date), today)])), [habits, entries, today]);
+    entries.filter((e) => e.habit_id === h.id && e.checked).map((e) => e.date), today, h.schedule_days)])), [habits, entries, today]);
+  const dueHabits = useMemo(() => habits.filter((h) => isScheduled(h.schedule_days, today)), [habits, today]);
 
-  const habitsDone = habits.filter((h) => checkedToday(h.id)).length;
+  const habitsDone = dueHabits.filter((h) => checkedToday(h.id)).length;
   const tasksTotal = tasks.length + doneTasks.length;
   const bestStreak = habits.reduce((m, h) => Math.max(m, streaks.get(h.id)?.current ?? 0), 0);
 
@@ -160,9 +162,10 @@ export default function Dashboard() {
       {/* right rail — 30% */}
       <div className="flex min-w-0 flex-col gap-2 lg:sticky lg:top-0">
         <Window title="Today's Habits" icon="✅"
-          actions={<span className="text-xs font-normal">{habitsDone} / {habits.length}</span>}>
+          actions={<span className="text-xs font-normal">{habitsDone} / {dueHabits.length}</span>}>
           {habits.length === 0 && <p className="text-[#666]">No habits configured.</p>}
-          {habits.map((h) => (
+          {habits.length > 0 && dueHabits.length === 0 && <p className="text-[#666]">No habits scheduled today.</p>}
+          {dueHabits.map((h) => (
             <div key={h.id} className="habit-row py-1.5">
               <Check label={`${h.icon} ${h.name}`} checked={checkedToday(h.id)} onChange={() => toggleHabit(h.id)} />
               <div className="mt-1 flex items-center gap-2 pl-6">
@@ -181,7 +184,7 @@ export default function Dashboard() {
 
         <Window title="At a Glance" icon="📊">
           <div className="glance-row"><span>Tasks today</span><b>{doneTasks.length} / {tasksTotal}</b></div>
-          <div className="glance-row"><span>Habits today</span><b>{habitsDone} / {habits.length}</b></div>
+          <div className="glance-row"><span>Habits today</span><b>{habitsDone} / {dueHabits.length}</b></div>
           <div className="glance-row"><span>Longest streak</span><b>🔥 {bestStreak}</b></div>
           <div className="glance-row"><span>Goals in focus</span><b>{goals.length}</b></div>
           <div className="glance-row"><span>Books reading</span><b>{reading.length}</b></div>
