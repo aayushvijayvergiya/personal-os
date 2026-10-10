@@ -45,7 +45,8 @@ export default function TasksPage() {
     const problem = recurrenceError(rule, due || null);
     if (problem) return showToast(problem);
     const { error } = await supabase.from("tasks").insert({
-      title: title.trim(), due_date: due || null, priority: Number(priority), recurrence: rule,
+      title: title.trim(), due_date: due || null, priority: Number(priority),
+      ...(rule ? { recurrence: rule } : {}), // omitted for one-time tasks so an unmigrated DB still works
     });
     if (error) return showToast(error.message);
     setTitle(""); setNewRule(null);
@@ -71,7 +72,7 @@ export default function TasksPage() {
     const { error } = await supabase.from("tasks").update({
       title: detail.title, description: detail.description, due_date: detail.due_date || null,
       priority: detail.priority, status: detail.status, custom_fields: detail.custom_fields,
-      recurrence: rule,
+      ...(detail.recurrence !== undefined ? { recurrence: rule } : {}),
       completed_at: detail.status === "done"
         ? detail.completed_at ?? new Date().toISOString() : null,
     }).eq("id", detail.id);

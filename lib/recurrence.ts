@@ -75,3 +75,13 @@ export function describeDays(days: number[]): string {
   if (key === "5,6") return "Weekends";
   return names(days);
 }
+
+/**
+ * A habit row with a usable `schedule_days`. Rows read from a database that hasn't run migration
+ * 005 yet have no such column; treat them (and empty sets) as every day instead of crashing.
+ */
+export function withSchedule<T>(h: T & { schedule_days?: number[] | null }): Omit<T, "schedule_days"> & { schedule_days: number[] } {
+  return h.schedule_days && h.schedule_days.length > 0
+    ? (h as Omit<T, "schedule_days"> & { schedule_days: number[] })
+    : { ...h, schedule_days: ALL_DAYS };
+}

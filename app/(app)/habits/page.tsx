@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Habit, HabitEntry } from "@/lib/types";
 import { addDays, fromISO, todayISO, weekDates } from "@/lib/dates";
 import { computeStreaks } from "@/lib/streaks";
-import { describeDays, isScheduled } from "@/lib/recurrence";
+import { describeDays, isScheduled, withSchedule } from "@/lib/recurrence";
 import WeekdayPicker from "@/components/WeekdayPicker";
 import { Window, Btn, Input, Dialog } from "@/components/win";
 import { showToast } from "@/components/win/toast";
@@ -26,7 +26,7 @@ export default function HabitsPage() {
       supabase.from("habit_entries").select("*"),
     ]);
     if (h.error) return showToast(h.error.message);
-    setHabits(h.data as Habit[]);
+    setHabits((h.data as Habit[]).map(withSchedule));
     if (!e.error) setEntries(e.data as HabitEntry[]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect

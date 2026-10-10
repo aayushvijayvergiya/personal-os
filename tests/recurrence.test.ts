@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   ALL_DAYS, describeDays, describeRule, isScheduled, nextOccurrence,
-  recurrenceError, validateRule, weekdayIndex, withAnchor, type Recurrence,
+  recurrenceError, validateRule, weekdayIndex, withAnchor, withSchedule, type Recurrence,
 } from "@/lib/recurrence";
 
 describe("weekdayIndex / isScheduled", () => {
@@ -105,5 +105,17 @@ describe("describe", () => {
     expect(describeDays([6, 5])).toBe("Weekends");
     expect(describeDays([6])).toBe("Sun");
     expect(describeDays([3, 0])).toBe("Mon, Thu");
+  });
+});
+
+describe("withSchedule", () => {
+  it("keeps a real schedule", () => {
+    const h = { id: "h", schedule_days: [5, 6] };
+    expect(withSchedule(h)).toBe(h);
+  });
+  it("defaults to every day when the column is missing (migration not applied) or empty", () => {
+    expect(withSchedule({ id: "h" }).schedule_days).toEqual(ALL_DAYS);
+    expect(withSchedule({ id: "h", schedule_days: null }).schedule_days).toEqual(ALL_DAYS);
+    expect(withSchedule({ id: "h", schedule_days: [] }).schedule_days).toEqual(ALL_DAYS);
   });
 });

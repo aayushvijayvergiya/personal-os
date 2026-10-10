@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { todayISO } from "@/lib/dates";
-import { isScheduled } from "@/lib/recurrence";
+import { isScheduled, withSchedule } from "@/lib/recurrence";
 
 export default function StatusBar() {
   const [now, setNow] = useState("");
@@ -30,8 +30,8 @@ export default function StatusBar() {
         supabase.from("habits").select("id, schedule_days").eq("active", true),
         supabase.from("habit_entries").select("habit_id").eq("date", today).eq("checked", true),
       ]);
-      const scheduled = new Set(((h.data ?? []) as { id: string; schedule_days: number[] }[])
-        .filter((x) => isScheduled(x.schedule_days, today)).map((x) => x.id));
+      const scheduled = new Set(((h.data ?? []) as { id: string; schedule_days?: number[] }[])
+        .filter((x) => isScheduled(withSchedule(x).schedule_days, today)).map((x) => x.id));
       const habitsDone = ((e.data ?? []) as { habit_id: string }[]).filter((x) => scheduled.has(x.habit_id)).length;
       setStats(`${t.count ?? 0} tasks due · ${habitsDone}/${scheduled.size} habits done`);
     }

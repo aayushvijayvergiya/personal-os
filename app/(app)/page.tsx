@@ -6,7 +6,7 @@ import type { Book, Goal, Habit, HabitEntry, Note, Task } from "@/lib/types";
 import { addDays, fmt, fromISO, todayISO } from "@/lib/dates";
 import { computeStreaks } from "@/lib/streaks";
 import { completeTask } from "@/lib/taskRecurrence";
-import { isScheduled } from "@/lib/recurrence";
+import { isScheduled, withSchedule } from "@/lib/recurrence";
 import { currentValues } from "@/lib/horizons";
 import { isOverdue, sortReadingItems } from "@/lib/reading";
 import { Window, Check, Btn, Progress } from "@/components/win";
@@ -44,7 +44,7 @@ export default function Dashboard() {
     if (t.error) return showToast(t.error.message);
     setTasks(t.data as Task[]);
     setDoneTasks((d.data as Task[]) ?? []);
-    setHabits((h.data as Habit[]) ?? []);
+    setHabits(((h.data as Habit[]) ?? []).map(withSchedule));
     setEntries((e.data as HabitEntry[]) ?? []);
     setGoals(((g.data as Goal[]) ?? []).filter((x) =>
       (x.horizon_type === "date" && x.horizon_value >= today && x.horizon_value <= addDays(today, 14)) ||
