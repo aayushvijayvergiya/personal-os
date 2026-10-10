@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Book, Goal, Habit, HabitEntry, Note, Task } from "@/lib/types";
 import { addDays, fmt, fromISO, todayISO } from "@/lib/dates";
 import { computeStreaks } from "@/lib/streaks";
+import { completeTask } from "@/lib/taskRecurrence";
 import { currentValues } from "@/lib/horizons";
 import { isOverdue, sortReadingItems } from "@/lib/reading";
 import { Window, Check, Btn, Progress } from "@/components/win";
@@ -55,11 +56,10 @@ export default function Dashboard() {
   useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function toggleTask(t: Task) {
-    const done = t.status !== "done";
-    const { error } = await supabase.from("tasks").update({
-      status: done ? "done" : "open", completed_at: done ? new Date().toISOString() : null,
-    }).eq("id", t.id);
-    if (error) return showToast(error.message);
+    const err = t.status !== "done"
+      ? await completeTask(supabase, t, today)
+      : (await supabase.from("tasks").update({ status: "open", completed_at: null }).eq("id", t.id)).error?.message ?? null;
+    if (err) return showToast(err);
     load();
   }
   async function toggleHabit(habitId: string) {
