@@ -1,6 +1,7 @@
 # Recurring Tasks & Habit Schedules — Design
 
 ## Goal
+(Applies to both the web app and the mobile app, which share one Supabase backend.)
 1. A task can be one-time or repeating. Repeating tasks have a configurable period: every N days, every N weeks on chosen weekdays, or every N months.
 2. A habit can be scheduled on chosen weekdays (e.g. weekends only). Streaks count scheduled days only.
 3. Existing habits in the DB can be edited to use a schedule.
@@ -43,6 +44,7 @@ type Recurrence =
   - 30-day % = checked scheduled days / scheduled days in the last 30 days (0 if none).
   - Default `days` keeps existing behaviour and tests.
 - Dashboard "Today's Habits": list only habits scheduled today; "Habits today" count uses scheduled habits only.
+- Status bar (web `StatusBar`, mobile `useStats`): the "x/y habits done" count includes only active habits scheduled today (and only their check-ins).
 - Habits page grid: unscheduled cells are greyed but still checkable (bonus). Stats use `statsFor` with the habit's days.
 - Manage Habits dialog: per habit, Mon–Sun chips plus Daily / Weekdays / Weekends presets. Applies on toggle (optimistic, rollback + toast on error). At least one day must remain selected. Works for active and retired habits. New habits default to daily and can be scheduled right after being added.
 
@@ -50,3 +52,17 @@ type Recurrence =
 - Vitest, test-first: `tests/recurrence.test.ts` (daily, multi-day weekly, N-week interval, month-end clamping, overdue anchor, validation, describe) and extended `tests/streaks.test.ts` (weekend-only, Sunday-only, missed scheduled day, bonus day, default-days regression, 30d %).
 - Manual browser check of: creating/completing a repeating task, editing an existing habit's schedule, dashboard filtering.
 - Before touching pages, read the relevant Next.js 16 docs in `node_modules/next/dist/docs/` (per AGENTS.md).
+
+## 5. Mobile app (`PersonalOS - Mobile`, Expo / React Native)
+Same behaviour as web; the Supabase backend is frozen on the mobile side, so **no migration there** — it relies on web migration `005_recurrence.sql` being applied first.
+- **Shared logic is copied, not re-derived:** `src/lib/recurrence.ts`, `src/lib/streaks.ts` and the pure `nextTaskRow` (`src/lib/taskRecurrence.ts`) are ports of the web files, with the web tests ported alongside them (minus the `vitest` import). Both repos must stay behaviourally identical.
+- **Types/fixtures:** `Task.recurrence`, `Habit.schedule_days`; test fixtures default to `null` / all seven days.
+- **Data layer (`src/data`):** `useTaskMutations` — `create` accepts a recurrence; `toggleDone` completes via a guarded update (`.neq("status","done").select("id")`) then spawns the next row; `update` spawns only when the stored status was not `done` and the new one is. `useHabitMutations` gains `setSchedule` (optimistic, rolls back on error). `useStats` counts scheduled habits only.
+- **UI (existing kit, no hard-coded styling):** new `WeekdayPicker` (built on `Chip`, with Daily/Weekdays/Weekends presets) in `src/ui`; new `RecurrenceEditor` in `src/screens/shared`.
+  - Tasks screen: "Repeat" checkbox + editor under the add row; 🔁 rule text on repeating rows.
+  - `TaskPropertiesDialog`: Repeat field, enabled via an `allowRepeat` prop that only the Tasks screen sets (the Projects module is out of scope, as on web).
+  - Habits screen: schedule label, greyed unscheduled `DayToggle`s (still checkable as bonus), scheduled-only "x/y this week", stats using the schedule, and a `WeekdayPicker` per habit in Manage habits (also for retired habits).
+  - Dashboard: only habits scheduled today; counts and streaks use the schedule.
+- **Unchanged on mobile:** Journal habit chips (unscheduled habits stay checkable there, like web).
+- **Testing:** Jest + React Native Testing Library. Ported lib tests; `RecurrenceEditor` and Habits-screen tests (schedule editing, schedule label); gate is `npm run typecheck && npm run lint && npm test && npx expo-doctor`.
+- Per mobile `AGENTS.md`: read the Expo v57 docs before coding; log decisions in `docs/decisions.md`.
