@@ -62,7 +62,9 @@ export default function TasksPage() {
   }
   async function saveDetail() {
     if (!detail) return;
-    const rule = detail.recurrence ? withAnchor(detail.recurrence, detail.due_date) : null;
+    // Not re-anchored here: the due-date field already re-anchors a monthly rule when the date
+    // changes, and a clamped copy (due Feb 28, day 31) must keep its day.
+    const rule = detail.recurrence;
     const problem = recurrenceError(rule, detail.due_date);
     if (problem) return showToast(problem);
     const prev = tasks.find((x) => x.id === detail.id);
