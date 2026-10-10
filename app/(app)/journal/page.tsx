@@ -6,6 +6,7 @@ import { addDays, fmt, isoWeekLabel, todayISO, weekStart } from "@/lib/dates";
 import { ensureDefaultQuestions, filterQuestionsForDate } from "@/lib/journalDefaults";
 import { Btn, TabBar, Check } from "@/components/win";
 import { showToast } from "@/components/win/toast";
+import { completeTask } from "@/lib/taskRecurrence";
 
 export default function JournalPage() {
   const supabase = createClient();
@@ -74,11 +75,10 @@ export default function JournalPage() {
     setHabitEntries((data as HabitEntry[]) ?? []);
   }
   async function toggleTask(t: Task) {
-    const done = t.status !== "done";
-    const { error } = await supabase.from("tasks").update({
-      status: done ? "done" : "open", completed_at: done ? new Date().toISOString() : null,
-    }).eq("id", t.id);
-    if (error) showToast(error.message);
+    const err = t.status !== "done"
+      ? await completeTask(supabase, t, today)
+      : (await supabase.from("tasks").update({ status: "open", completed_at: null }).eq("id", t.id)).error?.message ?? null;
+    if (err) showToast(err);
     const { data } = await supabase.from("tasks").select("*").is("project_id", null)
       .eq("due_date", effectiveDate).order("priority");
     setTasks((data as Task[]) ?? []);

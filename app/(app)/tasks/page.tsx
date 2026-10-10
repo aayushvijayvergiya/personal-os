@@ -8,6 +8,9 @@ import { TASK_TABS, taskFilterFor, taskOrClause, type TaskTab } from "@/lib/task
 import { Btn, Input, Select, TabBar, Dialog, Check, TextArea } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 import CustomFieldsEditor from "@/components/CustomFieldsEditor";
+import { completeTask, spawnNext } from "@/lib/taskRecurrence";
+import { describeRule, recurrenceError, withAnchor, type Recurrence } from "@/lib/recurrence";
+import RecurrenceEditor from "@/components/RecurrenceEditor";
 
 export default function TasksPage() {
   const [supabase] = useState(() => createClient());
@@ -18,6 +21,7 @@ export default function TasksPage() {
   const [priority, setPriority] = useState("2");
   const [detail, setDetail] = useState<Task | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [newRule, setNewRule] = useState<Recurrence | null>(null);
   const today = todayISO();
 
   const load = useCallback(async () => {
@@ -37,30 +41,46 @@ export default function TasksPage() {
 
   async function addTask() {
     if (!title.trim()) return;
+    const rule = newRule ? withAnchor(newRule, due || null) : null;
+    const problem = recurrenceError(rule, due || null);
+    if (problem) return showToast(problem);
     const { error } = await supabase.from("tasks").insert({
       title: title.trim(), due_date: due || null, priority: Number(priority),
+      ...(rule ? { recurrence: rule } : {}), // omitted for one-time tasks so an unmigrated DB still works
     });
     if (error) return showToast(error.message);
-    setTitle("");
+    setTitle(""); setNewRule(null);
     load();
   }
   async function toggleDone(t: Task) {
     const done = t.status !== "done";
     setTasks((ts) => ts.map((x) => x.id === t.id ? { ...x, status: done ? "done" : "open" } : x));
-    const { error } = await supabase.from("tasks").update({
-      status: done ? "done" : "open", completed_at: done ? new Date().toISOString() : null,
-    }).eq("id", t.id);
-    if (error) { showToast(error.message); load(); } else load();
+    const err = done
+      ? await completeTask(supabase, t, today)
+      : (await supabase.from("tasks").update({ status: "open", completed_at: null }).eq("id", t.id)).error?.message ?? null;
+    if (err) showToast(err);
+    load();
   }
   async function saveDetail() {
     if (!detail) return;
+    // Not re-anchored here: the due-date field already re-anchors a monthly rule when the date
+    // changes, and a clamped copy (due Feb 28, day 31) must keep its day.
+    const rule = detail.recurrence;
+    const problem = recurrenceError(rule, detail.due_date);
+    if (problem) return showToast(problem);
+    const prev = tasks.find((x) => x.id === detail.id);
     const { error } = await supabase.from("tasks").update({
       title: detail.title, description: detail.description, due_date: detail.due_date || null,
       priority: detail.priority, status: detail.status, custom_fields: detail.custom_fields,
+      ...(detail.recurrence !== undefined ? { recurrence: rule } : {}),
       completed_at: detail.status === "done"
         ? detail.completed_at ?? new Date().toISOString() : null,
     }).eq("id", detail.id);
     if (error) return showToast(error.message);
+    if (prev && prev.status !== "done" && detail.status === "done") {
+      const err = await spawnNext(supabase, { ...detail, recurrence: rule }, today);
+      if (err) showToast(err);
+    }
     setDetail(null); load();
   }
   async function removeTask(id: string) {
@@ -76,9 +96,20 @@ export default function TasksPage() {
         <div className="mb-3 flex gap-2">
           <Input placeholder="New task title…" value={title} onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addTask()} />
-          <input type="date" className="win-input" style={{ width: "auto", flexShrink: 0 }} value={due} onChange={(e) => setDue(e.target.value)} />
+          <input type="date" className="win-input" style={{ width: "auto", flexShrink: 0 }} value={due}
+            onChange={(e) => { setDue(e.target.value); setNewRule((r) => r ? withAnchor(r, e.target.value || null) : r); }} />
           <Select className="w-20" value={priority} onChange={(e) => setPriority(e.target.value)} options={PRIORITY_OPTS} />
           <Btn primary onClick={addTask}>Add</Btn>
+        </div>
+        <div className="mb-3">
+          <Check label="Repeat" checked={!!newRule}
+            onChange={(on) => setNewRule(on ? withAnchor({ freq: "daily", interval: 1 }, due || null) : null)} />
+          {newRule && (
+            <div className="mt-1 pl-6">
+              <RecurrenceEditor value={newRule} anchorIso={due || null} onChange={setNewRule} />
+              {!due && <p className="mt-1 text-xs text-[#aa0000]">Repeating tasks need a due date.</p>}
+            </div>
+          )}
         </div>
         {tab !== "done" && (
           <div className="mb-2 flex items-center justify-between">
@@ -97,6 +128,7 @@ export default function TasksPage() {
                 <span className="mt-[3px]"><Check checked={t.status === "done"} onChange={() => toggleDone(t)} /></span>
                 <button className="min-w-0 flex-1 text-left" onClick={() => setDetail({ ...t })}>
                   <span className={t.status === "done" ? "line-through text-[#666]" : ""}>{t.title}</span>
+                  {t.recurrence && <span className="ml-2 text-xs text-[#000080]" title={describeRule(t.recurrence)}>🔁 {describeRule(t.recurrence)}</span>}
                   {t.description && (
                     <span className="mt-0.5 block whitespace-pre-wrap break-words text-xs text-[#666]">{t.description}</span>
                   )}
@@ -118,10 +150,22 @@ export default function TasksPage() {
               <Input value={detail.title} onChange={(e) => setDetail({ ...detail, title: e.target.value })} /></div>
             <div className="field-row"><label>Due date:</label>
               <input type="date" className="win-input" value={detail.due_date ?? ""}
-                onChange={(e) => setDetail({ ...detail, due_date: e.target.value || null })} /></div>
+                onChange={(e) => setDetail({ ...detail, due_date: e.target.value || null,
+                  recurrence: detail.recurrence ? withAnchor(detail.recurrence, e.target.value || null) : null })} /></div>
             <div className="field-row"><label>Priority:</label>
               <Select value={String(detail.priority)} options={PRIORITY_OPTS}
                 onChange={(e) => setDetail({ ...detail, priority: Number(e.target.value) })} /></div>
+            <div className="field-row"><label>Repeat:</label>
+              <div className="flex-1">
+                <Check label="Repeats" checked={!!detail.recurrence}
+                  onChange={(on) => setDetail({ ...detail, recurrence: on ? withAnchor({ freq: "daily", interval: 1 }, detail.due_date) : null })} />
+                {detail.recurrence && (
+                  <div className="mt-1">
+                    <RecurrenceEditor value={detail.recurrence} anchorIso={detail.due_date}
+                      onChange={(recurrence) => setDetail({ ...detail, recurrence })} />
+                  </div>
+                )}
+              </div></div>
             <div className="field-row"><label>Status:</label>
               <Select value={detail.status} options={[
                 { value: "open", label: "Open" }, { value: "in_progress", label: "In Progress" }, { value: "done", label: "Done" },

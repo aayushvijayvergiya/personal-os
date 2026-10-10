@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { Habit, HabitEntry } from "@/lib/types";
 import { addDays, fromISO, todayISO, weekDates } from "@/lib/dates";
 import { computeStreaks } from "@/lib/streaks";
+import { describeDays, isScheduled, withSchedule } from "@/lib/recurrence";
+import WeekdayPicker from "@/components/WeekdayPicker";
 import { Window, Btn, Input, Dialog } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 
@@ -24,7 +26,7 @@ export default function HabitsPage() {
       supabase.from("habit_entries").select("*"),
     ]);
     if (h.error) return showToast(h.error.message);
-    setHabits(h.data as Habit[]);
+    setHabits((h.data as Habit[]).map(withSchedule));
     if (!e.error) setEntries(e.data as HabitEntry[]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]); // eslint-disable-line react-hooks/set-state-in-effect
@@ -68,6 +70,13 @@ export default function HabitsPage() {
     if (error) showToast(error.message);
     load();
   }
+  async function setSchedule(h: Habit, days: number[]) {
+    if (days.length === 0) return showToast("Pick at least one day");
+    setHabits((hs) => hs.map((x) => x.id === h.id ? { ...x, schedule_days: days } : x));
+    const { error } = await supabase.from("habits").update({ schedule_days: days }).eq("id", h.id);
+    if (error) showToast(error.message);
+    load(); // reloads the saved value, undoing the optimistic change on error
+  }
   async function moveHabit(h: Habit, dir: -1 | 1) {
     const act = habits;
     const i = act.findIndex((x) => x.id === h.id);
@@ -84,7 +93,7 @@ export default function HabitsPage() {
 
   const active = habits.filter((h) => h.active);
   const statsFor = (h: Habit) =>
-    computeStreaks(entries.filter((e) => e.habit_id === h.id && e.checked).map((e) => e.date), today);
+    computeStreaks(entries.filter((e) => e.habit_id === h.id && e.checked).map((e) => e.date), today, h.schedule_days);
 
   return (
     <div className="flex flex-col gap-2">
@@ -114,9 +123,10 @@ export default function HabitsPage() {
                 const s = statsFor(h);
                 return (
                   <tr key={h.id}>
-                    <td className="border border-[#ccc] px-2 py-1">{h.icon} {h.name}</td>
+                    <td className="border border-[#ccc] px-2 py-1">{h.icon} {h.name}
+                      {h.schedule_days.length < 7 && <span className="block text-[10px] text-[#666]">{describeDays(h.schedule_days)}</span>}</td>
                     {days.map((d) => (
-                      <td key={d} className={`border border-[#ccc] text-center ${d === today ? "bg-[#ffffe1]" : ""}`}>
+                      <td key={d} className={`border border-[#ccc] text-center ${d === today ? "bg-[#ffffe1]" : !isScheduled(h.schedule_days, d) ? "bg-[#eee]" : ""}`}>
                         <input type="checkbox" className="h-4 w-4 accent-[#000080]"
                           disabled={d > today || pending.has(`${h.id}:${d}`)}
                           checked={isChecked(h.id, d)} onChange={() => toggle(h.id, d)} />
@@ -140,11 +150,14 @@ export default function HabitsPage() {
           <Btn primary onClick={addHabit}>Add</Btn>
         </div>
         {habits.map((h) => (
-          <div key={h.id} className="mb-1 flex items-center gap-2">
-            <Input key={h.id} defaultValue={h.name} onBlur={(e) => renameHabit(h, e.target.value)} />
-            <Btn onClick={() => moveHabit(h, -1)}>▲</Btn>
-            <Btn onClick={() => moveHabit(h, 1)}>▼</Btn>
-            <Btn onClick={() => toggleActive(h)}>{h.active ? "Retire" : "Restore"}</Btn>
+          <div key={h.id} className="mb-3">
+            <div className="mb-1 flex items-center gap-2">
+              <Input key={h.id} defaultValue={h.name} onBlur={(e) => renameHabit(h, e.target.value)} />
+              <Btn onClick={() => moveHabit(h, -1)}>▲</Btn>
+              <Btn onClick={() => moveHabit(h, 1)}>▼</Btn>
+              <Btn onClick={() => toggleActive(h)}>{h.active ? "Retire" : "Restore"}</Btn>
+            </div>
+            <WeekdayPicker presets value={h.schedule_days} onChange={(days) => setSchedule(h, days)} />
           </div>
         ))}
       </Dialog>
