@@ -111,14 +111,6 @@ export default function TasksPage() {
             </div>
           )}
         </div>
-        {tab !== "done" && (
-          <div className="mb-2 flex items-center justify-between">
-            <Check label="Show completed" checked={showDone} onChange={setShowDone} />
-            <span className="text-xs text-[#444]">
-              {tasks.filter((t) => t.status === "done").length} done / {tasks.length} shown
-            </span>
-          </div>
-        )}
         <div className="bevel-in bg-white">
           {tasks.length === 0 && <p className="p-4 text-[#666]">No tasks here. Add one above. ▲</p>}
           {tasks.map((t) => {
@@ -141,6 +133,14 @@ export default function TasksPage() {
             );
           })}
         </div>
+        {tab !== "done" && (
+          <div className="mt-2 flex items-center justify-between">
+            <Check label="Show completed" checked={showDone} onChange={setShowDone} />
+            <span className="text-xs text-[#444]">
+              {tasks.filter((t) => t.status === "done").length} done / {tasks.length} shown
+            </span>
+          </div>
+        )}
       </div>
 
       <Dialog title="Task Properties" open={!!detail} onClose={() => setDetail(null)}>
@@ -157,7 +157,7 @@ export default function TasksPage() {
                 onChange={(e) => setDetail({ ...detail, priority: Number(e.target.value) })} /></div>
             <div className="field-row"><label>Repeat:</label>
               <div className="flex-1">
-                <Check label="Repeats" checked={!!detail.recurrence}
+                <Check label="" checked={!!detail.recurrence}
                   onChange={(on) => setDetail({ ...detail, recurrence: on ? withAnchor({ freq: "daily", interval: 1 }, detail.due_date) : null })} />
                 {detail.recurrence && (
                   <div className="mt-1">
