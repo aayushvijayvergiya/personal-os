@@ -1,12 +1,16 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Goal, VisionItem } from "@/lib/types";
+import type { Goal, VisionItem, VisionListItem } from "@/lib/types";
 import { horizonLabel } from "@/lib/horizons";
 import { Btn, Dialog, Input, Select, TextArea } from "@/components/win";
 import { showToast } from "@/components/win/toast";
 
 const NOTE_COLORS = ["#ffffe1", "#e1ffe1", "#e1f0ff", "#ffe1f0", "#fff0d0"];
+
+// Older lists stored plain strings; normalize to { text, done }.
+const listItems = (it: VisionItem): VisionListItem[] =>
+  (it.content.items ?? []).map((li) => typeof li === "string" ? { text: li, done: false } : li);
 
 export default function VisionPage() {
   const supabase = createClient();
@@ -16,6 +20,7 @@ export default function VisionPage() {
   const [kind, setKind] = useState<VisionItem["item_type"]>("note");
   const [text, setText] = useState("");
   const [goalId, setGoalId] = useState("");
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
 
@@ -63,7 +68,6 @@ export default function VisionPage() {
     if (!adding) return;
     const content =
       kind === "note" ? { text, color: NOTE_COLORS[items.length % NOTE_COLORS.length] } :
-      kind === "image" ? { url: text, caption: "" } :
       kind === "goal" ? { goal_id: goalId } :
       { title: text || "Non-Negotiables", items: [] as string[] };
     const { error } = await supabase.from("vision_items").insert({
@@ -84,6 +88,13 @@ export default function VisionPage() {
     if (error) showToast(error.message);
   }
 
+  function saveNoteEdit(it: VisionItem) {
+    if (!editing || editing.id !== it.id) return;
+    const next = editing.text;
+    setEditing(null);
+    if (next !== (it.content.text ?? "")) updateContent(it, { ...it.content, text: next });
+  }
+
   function renderCard(it: VisionItem) {
     const g = it.item_type === "goal" ? goals.find((x) => x.id === it.content.goal_id) : null;
     const pct = g ? (g.status === "done" ? 100 : g.status === "in_progress" ? 50 : 0) : 0;
@@ -95,7 +106,19 @@ export default function VisionPage() {
           background: it.item_type === "note" ? it.content.color ?? "#ffffe1" : "#c0c0c0" }}>
         <button className="float-right text-xs" onPointerDown={(e) => e.stopPropagation()}
           onClick={() => remove(it.id)}>✕</button>
-        {it.item_type === "note" && <p className="whitespace-pre-wrap">{it.content.text}</p>}
+        {it.item_type === "note" && (editing?.id === it.id ? (
+          <textarea autoFocus className="win-input h-32 w-full resize-none bg-transparent"
+            value={editing.text}
+            onPointerDown={(e) => e.stopPropagation()}
+            onChange={(e) => setEditing({ id: it.id, text: e.target.value })}
+            onBlur={() => saveNoteEdit(it)}
+            onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} />
+        ) : (
+          <p className="whitespace-pre-wrap" title="Double-click to edit"
+            onDoubleClick={() => setEditing({ id: it.id, text: it.content.text ?? "" })}>
+            {it.content.text || <span className="text-[#888]">(empty — double-click to edit)</span>}
+          </p>
+        ))}
         {it.item_type === "image" && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -113,26 +136,41 @@ export default function VisionPage() {
             <p className="text-center text-xs">{g.status.replace("_", " ")}</p>
           </>
         ) : <p className="text-xs text-[#aa0000]">Goal deleted — remove this card.</p>)}
-        {it.item_type === "list" && (
-          <>
-            <p className="font-bold">‼️ {it.content.title}</p>
-            {(it.content.items ?? []).map((li, i) => (
-              <div key={i} className="flex items-center gap-1">
-                <span>•</span><span className="flex-1">{li}</span>
-                <button className="text-xs" onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => updateContent(it, { ...it.content, items: it.content.items!.filter((_, j) => j !== i) })}>✕</button>
-              </div>
-            ))}
-            <input className="win-input mt-1 text-xs" placeholder="Add item + Enter"
-              onPointerDown={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                  updateContent(it, { ...it.content, items: [...(it.content.items ?? []), e.currentTarget.value.trim()] });
-                  e.currentTarget.value = "";
-                }
-              }} />
-          </>
-        )}
+        {it.item_type === "list" && (() => {
+          const all = listItems(it);
+          const doneCount = all.filter((li) => li.done).length;
+          const save = (items: VisionListItem[]) => updateContent(it, { ...it.content, items });
+          return (
+            <>
+              <p className="font-bold">‼️ {it.content.title}</p>
+              {all.map((li, i) => (it.content.hide_done && li.done) ? null : (
+                <div key={i} className="flex items-center gap-1">
+                  <input type="checkbox" checked={li.done}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onChange={() => save(all.map((x, j) => j === i ? { ...x, done: !x.done } : x))} />
+                  <span className={`flex-1 ${li.done ? "text-[#666] line-through" : ""}`}>{li.text}</span>
+                  <button className="text-xs" onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => save(all.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+              <input className="win-input mt-1 text-xs" placeholder="Add item + Enter"
+                onPointerDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                    save([...all, { text: e.currentTarget.value.trim(), done: false }]);
+                    e.currentTarget.value = "";
+                  }
+                }} />
+              {doneCount > 0 && (
+                <label className="mt-1 flex items-center gap-1 text-xs" onPointerDown={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={!!it.content.hide_done}
+                    onChange={() => updateContent(it, { ...it.content, hide_done: !it.content.hide_done })} />
+                  Hide finished ({doneCount})
+                </label>
+              )}
+            </>
+          );
+        })()}
       </div>
     );
   }
@@ -152,13 +190,11 @@ export default function VisionPage() {
       <Dialog title="Pin to Vision Board" open={!!adding} onClose={() => setAdding(null)}>
         <div className="field-row"><label>Type:</label>
           <Select value={kind} options={[
-            { value: "note", label: "Sticky note" }, { value: "image", label: "Image (URL)" },
+            { value: "note", label: "Sticky note" },
             { value: "goal", label: "Goal card" }, { value: "list", label: "List (e.g. Non-Negotiables)" },
           ]} onChange={(e) => setKind(e.target.value as VisionItem["item_type"])} /></div>
         {kind === "note" && <div className="field-row"><label>Text:</label>
           <TextArea value={text} onChange={(e) => setText(e.target.value)} /></div>}
-        {kind === "image" && <div className="field-row"><label>Image URL:</label>
-          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="https://…" /></div>}
         {kind === "list" && <div className="field-row"><label>List title:</label>
           <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Non-Negotiables" /></div>}
         {kind === "goal" && <div className="field-row"><label>Goal:</label>
