@@ -46,8 +46,9 @@ export interface FieldDefinition {
   field_type: "text" | "number" | "date" | "select";
   options: string[] | null; sort_order: number;
 }
+export interface VisionListItem { text: string; done: boolean }
 export interface VisionItem {
   id: string; item_type: "note" | "image" | "goal" | "list";
-  content: { text?: string; color?: string; url?: string; caption?: string; goal_id?: string; title?: string; items?: string[] };
+  content: { text?: string; color?: string; url?: string; caption?: string; goal_id?: string; title?: string; items?: (string | VisionListItem)[]; hide_done?: boolean };
   pos_x: number; pos_y: number; rotation: number; z_index: number;
 }
