@@ -60,13 +60,13 @@ export function TabBar({ tabs, active, onSelect }: {
   );
 }
 
-export function Dialog({ title, open, onClose, children }: {
-  title: string; open: boolean; onClose: () => void; children: React.ReactNode;
+export function Dialog({ title, open, onClose, children, widthClass = "w-[420px]" }: {
+  title: string; open: boolean; onClose: () => void; children: React.ReactNode; widthClass?: string;
 }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onMouseDown={onClose}>
-      <div className="win-window w-[420px] max-w-[92vw]" onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`win-window ${widthClass} max-w-[92vw]`} onMouseDown={(e) => e.stopPropagation()}>
         <div className="win-titlebar">
           <span>{title}</span>
           <button className="win-btn px-2 py-0 text-xs leading-none" onClick={onClose}>✕</button>

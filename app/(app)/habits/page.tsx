@@ -143,15 +143,15 @@ export default function HabitsPage() {
         )}
       </Window>
 
-      <Dialog title="Manage Habits" open={manage} onClose={() => setManage(false)}>
-        <div className="mb-2 flex gap-2">
+      <Dialog title="Manage Habits" open={manage} onClose={() => setManage(false)} widthClass="w-[640px]">
+        <div className="mb-4 flex gap-2 border-b border-[#808080] pb-4">
           <Input placeholder="New habit name…" value={newName} onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addHabit()} />
           <Btn primary onClick={addHabit}>Add</Btn>
         </div>
         {habits.map((h) => (
-          <div key={h.id} className="mb-3">
-            <div className="mb-1 flex items-center gap-2">
+          <div key={h.id} className="mb-3 border-b border-[#a0a0a0] pb-3 last:mb-0 last:border-b-0 last:pb-0">
+            <div className="mb-2 flex items-center gap-2">
               <Input key={h.id} defaultValue={h.name} onBlur={(e) => renameHabit(h, e.target.value)} />
               <Btn onClick={() => moveHabit(h, -1)}>▲</Btn>
               <Btn onClick={() => moveHabit(h, 1)}>▼</Btn>
