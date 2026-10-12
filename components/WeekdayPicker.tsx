@@ -8,14 +8,14 @@ export default function WeekdayPicker({ value, onChange, presets = false }: {
   const toggle = (d: number) =>
     onChange(value.includes(d) ? value.filter((x) => x !== d) : [...value, d].sort((a, b) => a - b));
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
       {WEEKDAY_LABELS.map((label, d) => (
         <button key={d} type="button" aria-pressed={value.includes(d)}
           className={`journal-chip ${value.includes(d) ? "journal-chip-on" : ""}`}
           onClick={() => toggle(d)}>{label}</button>
       ))}
       {presets && (
-        <span className="ml-2 flex gap-1">
+        <span className="ml-auto flex gap-1.5">
           <Btn type="button" className="px-2 py-0 text-xs" onClick={() => onChange(ALL_DAYS)}>Daily</Btn>
           <Btn type="button" className="px-2 py-0 text-xs" onClick={() => onChange([0, 1, 2, 3, 4])}>Weekdays</Btn>
           <Btn type="button" className="px-2 py-0 text-xs" onClick={() => onChange([5, 6])}>Weekends</Btn>
